@@ -35,8 +35,9 @@ export function setAuthCookie(token: string) {
   });
 }
 
-export function getAuthFromCookies() {
-  const token = cookies().get("auth_token")?.value;
+export async function getAuthFromCookies() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("auth_token")?.value;
   if (!token) return null;
   return verifyToken(token);
 }

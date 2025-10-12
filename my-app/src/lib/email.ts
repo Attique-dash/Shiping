@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 let transporter: nodemailer.Transporter | null = null;
 
@@ -44,6 +45,65 @@ export async function sendNewPackageEmail(opts: {
     <p>
       You can view live updates in your portal.
     </p>
+  </div>`;
+
+  await t.sendMail({
+    from: EMAIL_USER,
+    to,
+    subject,
+    html,
+  });
+  return { sent: true };
+}
+
+export async function sendSupportContactEmail(opts: {
+  fromEmail: string;
+  name?: string;
+  subject: string;
+  message: string;
+}) {
+  const t = getTransporter();
+  if (!t) return { sent: false, reason: "Email not configured" };
+  const to = ADMIN_EMAIL || EMAIL_USER;
+  if (!to) return { sent: false, reason: "No admin email configured" };
+
+  const subject = `[Support] ${opts.subject}`;
+  const html = `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111">
+    <h2 style="margin:0 0 12px 0;">New Support Contact</h2>
+    <p><strong>From:</strong> ${opts.name ? opts.name + " — " : ""}${opts.fromEmail}</p>
+    <p style="white-space:pre-wrap">${opts.message}</p>
+  </div>`;
+
+  await t.sendMail({
+    from: EMAIL_USER,
+    to,
+    subject,
+    html,
+    replyTo: opts.fromEmail,
+  });
+  return { sent: true };
+}
+
+export async function sendStatusUpdateEmail(opts: {
+  to: string;
+  firstName: string;
+  trackingNumber: string;
+  status: string;
+  note?: string;
+}) {
+  const t = getTransporter();
+  if (!t) return { sent: false, reason: "Email not configured" };
+
+  const { to, firstName, trackingNumber, status, note } = opts;
+  const subject = `Package Update — ${trackingNumber} is now ${status}`;
+  const html = `
+  <div style="font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111">
+    <h2 style="margin:0 0 12px 0;">Package Status Updated</h2>
+    <p>Hi ${firstName || "Customer"},</p>
+    <p>Your package has a new status: <strong>${status}</strong>.</p>
+    ${note ? `<p style="margin:8px 0 0 0;color:#374151">Note: ${note}</p>` : ""}
+    <p style="margin-top:16px;">You can view live tracking updates in your customer portal.</p>
   </div>`;
 
   await t.sendMail({

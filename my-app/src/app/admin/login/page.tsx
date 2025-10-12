@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 export default function AdminLoginPage() {
-  const router = useRouter();
   const params = useSearchParams();
   const redirect = params.get("redirect") || "/admin";
 
@@ -15,29 +14,32 @@ export default function AdminLoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage(null);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
+        credentials: "include",
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || data.message || "Login failed");
       // If the user is not admin, show message and do not redirect to /admin
       if (data?.user?.role !== "admin") {
-        setMessage("This portal is for admins only. Please use the customer login at /login.");
+        setMessage("This portal is for admins only. Redirecting to customer login...");
+        setTimeout(() => {
+          window.location.assign("/login");
+        }, 600);
         return;
       }
-      router.push(redirect);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed";
-      setMessage(msg);
+      const to = redirect || "/admin";
+      // Use full page navigation so cookie is definitely present
+      window.location.assign(to);
+    } catch (e: any) {
+      setMessage(e?.message || "Login failed");
     } finally {
       setLoading(false);
     }
   }
-
   return (
     <div className="relative min-h-[80vh] grid place-items-center overflow-hidden bg-[radial-gradient(1200px_500px_at_50%_-10%,#172437_0%,#0d1623_60%,#0b1320_100%)]">
       <div className="relative z-10 w-full max-w-4xl">

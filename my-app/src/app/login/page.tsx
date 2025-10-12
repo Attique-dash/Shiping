@@ -1,97 +1,109 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter();
   const params = useSearchParams();
   const redirect = params.get("redirect") || "/";
+  const tracking = params.get("tracking") || "";
 
-  const [form, setForm] = useState({ email: "", password: "" });
+  const [form, setForm] = useState({ email: "", password: "", rememberMe: false });
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // If already authenticated, bounce out of login immediately
+  useEffect(() => {
+    fetch("/api/auth/me", { cache: "no-store", credentials: "include" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.user) {
+          const role = d.user.role as string | undefined;
+          if (role === "admin") window.location.replace("/admin");
+          else if (role === "warehouse") window.location.replace("/warehouse");
+          else window.location.replace("/dashboard");
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    setMessage(null);
+    setError(null);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
+        credentials: "include",
       });
-      let data: any = null;
-      const ct = res.headers.get("content-type") || "";
-      try {
-        data = ct.includes("application/json") ? await res.json() : await res.text();
-      } catch {
-        data = null;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || data?.message || "Login failed");
+
+      // Decide where to go based on role
+      const role = data?.user?.role as string | undefined;
+      if (role === "admin") {
+        window.location.assign("/admin");
+      } else if (role === "warehouse") {
+        window.location.assign("/warehouse");
+      } else {
+        const to = redirect && redirect !== "/" ? redirect : "/dashboard";
+        const url = tracking ? `${to}?tracking=${encodeURIComponent(tracking)}` : to;
+        window.location.assign(url);
       }
-      if (!res.ok) {
-        const msg = typeof data === "string" && data ? data : data?.error || data?.message || "Login failed";
-        throw new Error(msg);
-      }
-      router.push(redirect);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed";
-      setMessage(msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="relative min-h-[80vh] grid place-items-center overflow-hidden bg-[radial-gradient(1200px_500px_at_50%_-10%,#172437_0%,#0d1623_60%,#0b1320_100%)]">
-      <div className="absolute inset-0 bg-[url('/city-blur.png')] bg-cover bg-center opacity-20" aria-hidden></div>
-      <div className="relative z-10 w-full max-w-4xl">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,.35)]">
-          {/* Left logo panel */}
-          <div className="hidden md:flex flex-col items-center justify-center gap-4 p-10 text-white bg-gradient-to-br from-white/5 to-white/0">
-            <img src="/logo.svg" alt="Tasoko" className="h-20 w-20 drop-shadow-[0_0_12px_#29d3ff]" />
-            <div className="text-center">
-              <div className="text-2xl font-semibold tracking-wide">TASOKO</div>
-              <div className="text-sm uppercase tracking-widest text-[#7ee3ff]">Courier</div>
-            </div>
+    <div className="min-h-[calc(100vh-0px)] bg-gray-50">
+      <div className="mx-auto max-w-5xl px-6 py-16">
+        <div className="mx-auto max-w-md rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-100">
+          <div className="mb-6 text-center">
+            <h1 className="text-2xl font-extrabold tracking-tight">Log in</h1>
           </div>
-
-          {/* Right form card */}
-          <div className="p-8 md:p-10 text-white">
-            <div className="mx-auto w-full max-w-sm">
-              <h1 className="mb-6 text-center text-2xl font-semibold">Customer Login</h1>
-              <div className="rounded-xl border border-[#29d3ff]/40 bg-white/5 p-5 shadow-inner">
-                <form onSubmit={onSubmit} className="space-y-3">
-                  <input
-                    className="w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 outline-none placeholder:text-white/70 focus:ring-2 focus:ring-[#29d3ff]"
-                    type="email"
-                    placeholder="Email Address"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    required
-                  />
-                  <input
-                    className="w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 outline-none placeholder:text-white/70 focus:ring-2 focus:ring-[#29d3ff]"
-                    type="password"
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    required
-                  />
-                  <button
-                    disabled={loading}
-                    className="w-full rounded-md bg-[#29d3ff] px-4 py-2 font-semibold text-black hover:bg-[#12c6f7] disabled:opacity-50"
-                  >
-                    {loading ? "Signing in..." : "Log In"}
-                  </button>
-                  <div className="flex items-center justify-between text-xs text-white/70">
-                    <a href="#" className="hover:underline">Forgot Password?</a>
-                    <a href="/register" className="hover:underline">Sign Up</a>
-                  </div>
-                </form>
-              </div>
-              {message && <p className="mt-3 text-center text-sm text-red-300">{message}</p>}
-            </div>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              type="email"
+              placeholder="Email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+            <input
+              className="w-full rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              type="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              <input
+                type="checkbox"
+                checked={form.rememberMe}
+                onChange={(e) => setForm({ ...form, rememberMe: e.target.checked })}
+              />
+              Remember me
+              <a href="#" className="ml-auto text-blue-600 hover:underline">Forgot Password?</a>
+            </label>
+            {error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>}
+            <button
+              disabled={loading}
+              className="w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
+            >
+              {loading ? "Signing in..." : "Log in"}
+            </button>
+          </form>
+          <div className="mt-6 text-center text-sm text-gray-600">
+            No account? <Link href="/register" className="text-blue-600 hover:underline">Register</Link>
           </div>
         </div>
       </div>
