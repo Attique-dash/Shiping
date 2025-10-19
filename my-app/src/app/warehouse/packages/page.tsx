@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { generateTrackingNumber } from "@/lib/tracking";
 
 export default function WarehousePackagesPage() {
   // Add package form
@@ -46,21 +47,10 @@ export default function WarehousePackagesPage() {
     return fallback;
   }
 
-  function genTracking(): string {
-    // Generate a 10-character string with letters/numbers and exactly one '-' in the middle (not at start/end)
-    const letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-    const numbers = "23456789";
-    const alnum = letters + numbers;
-    const choose = (pool: string) => pool[Math.floor(Math.random() * pool.length)];
-    const arr: string[] = [];
-    for (let i = 0; i < 10; i++) arr.push(choose(alnum));
-    const dashIndex = 1 + Math.floor(Math.random() * 8); // 1..8
-    arr[dashIndex] = "-";
-    return arr.join("");
-  }
+  // Strong tracking generator provided by lib/tracking
 
   function refreshTracking() {
-    const v = genTracking();
+    const v = generateTrackingNumber("TAS");
     setAdd((s) => ({ ...s, trackingNumber: v }));
     // trigger check
     void checkExists(v);
@@ -84,7 +74,7 @@ export default function WarehousePackagesPage() {
   // On mount, if tracking number empty, generate one
   useEffect(() => {
     if (!add.trackingNumber) {
-      const v = genTracking();
+      const v = generateTrackingNumber("TAS");
       setAdd((s) => ({ ...s, trackingNumber: v }));
       void checkExists(v);
     }
@@ -114,7 +104,7 @@ export default function WarehousePackagesPage() {
     setAddMsg(r.ok ? "Package saved" : toMessage(d, "Failed to add package"));
     if (r.ok) {
       // Generate a new tracking for next entry
-      const next = genTracking();
+      const next = generateTrackingNumber("TAS");
       setAdd({ trackingNumber: next, userCode: "", weight: "", shipper: "", description: "", entryDate: new Date().toISOString().slice(0, 10) });
       setTnExists(null);
       void checkExists(next);

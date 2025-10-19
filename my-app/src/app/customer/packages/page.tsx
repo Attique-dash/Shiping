@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type UIPackage = {
   id?: string;
@@ -13,6 +13,8 @@ type UIPackage = {
   invoice_status?: string;
   actions_available?: string[];
   ready_since?: string;
+  updated_at?: string;
+  weight_kg?: number;
 };
 
 export default function CustomerPackagesPage() {
@@ -21,6 +23,7 @@ export default function CustomerPackagesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [locationQuery, setLocationQuery] = useState("");
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -32,6 +35,12 @@ export default function CustomerPackagesPage() {
   // Pagination
   const [page, setPage] = useState(1);
   const pageSize = 20;
+
+  // Debounce query input changes (300ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(t);
+  }, [query]);
 
   async function load() {
     setLoading(true);
@@ -58,23 +67,25 @@ export default function CustomerPackagesPage() {
     return () => clearInterval(id);
   }, []);
 
-  const filtered = items.filter((p) => {
-    const q = query.trim().toLowerCase();
-    const lq = locationQuery.trim().toLowerCase();
-    const matchesQuery = !q
-      || p.tracking_number.toLowerCase().includes(q)
-      || (p.description || "").toLowerCase().includes(q);
-    const matchesStatus = !statusFilter || p.status === statusFilter;
-    const matchesLocation = !lq || (p.current_location || "").toLowerCase().includes(lq);
-    // Date range filter on updated_at or ready_since/estimated_delivery as fallback
-    const fromOk = !dateFrom || ((p as any).updated_at ? new Date((p as any).updated_at) >= new Date(dateFrom) : true);
-    const toOk = !dateTo || ((p as any).updated_at ? new Date((p as any).updated_at) <= new Date(dateTo + "T23:59:59") : true);
-    // Weight filters use numeric weight_kg if available
-    const w = (p as any).weight_kg as number | undefined;
-    const wMinOk = !weightMin || (typeof w === "number" ? w >= Number(weightMin) : true);
-    const wMaxOk = !weightMax || (typeof w === "number" ? w <= Number(weightMax) : true);
-    return matchesQuery && matchesStatus && matchesLocation && fromOk && toOk && wMinOk && wMaxOk;
-  });
+  const filtered = useMemo(() => {
+    return items.filter((p) => {
+      const q = debouncedQuery.trim().toLowerCase();
+      const lq = locationQuery.trim().toLowerCase();
+      const matchesQuery = !q
+        || p.tracking_number.toLowerCase().includes(q)
+        || (p.description || "").toLowerCase().includes(q);
+      const matchesStatus = !statusFilter || p.status === statusFilter;
+      const matchesLocation = !lq || (p.current_location || "").toLowerCase().includes(lq);
+      // Date range filter on updated_at or ready_since/estimated_delivery as fallback
+      const fromOk = !dateFrom || (p.updated_at ? new Date(p.updated_at) >= new Date(dateFrom) : true);
+      const toOk = !dateTo || (p.updated_at ? new Date(p.updated_at) <= new Date(dateTo + "T23:59:59") : true);
+      // Weight filters use numeric weight_kg if available
+      const w = p.weight_kg as number | undefined;
+      const wMinOk = !weightMin || (typeof w === "number" ? w >= Number(weightMin) : true);
+      const wMaxOk = !weightMax || (typeof w === "number" ? w <= Number(weightMax) : true);
+      return matchesQuery && matchesStatus && matchesLocation && fromOk && toOk && wMinOk && wMaxOk;
+    });
+  }, [items, debouncedQuery, statusFilter, locationQuery, dateFrom, dateTo, weightMin, weightMax]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const pageClamped = Math.min(Math.max(1, page), totalPages);
