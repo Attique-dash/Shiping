@@ -25,19 +25,9 @@ export function middleware(req: NextRequest) {
     }
   }
 
-  if (pathname.startsWith("/warehouse")) {
-    const token = req.cookies.get("auth_token")?.value;
-    const payload = token ? verifyToken(token) : null;
-    if (!payload || (payload.role !== "warehouse" && payload.role !== "admin")) {
-      const url = new URL("/login", req.url);
-      url.searchParams.set("redirect", "/warehouse");
-      return NextResponse.redirect(url);
-    }
-  }
-
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/warehouse/:path*"],
+  matcher: ["/admin/:path*", "/dashboard/:path*"],
 };

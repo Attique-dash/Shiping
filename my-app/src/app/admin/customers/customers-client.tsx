@@ -27,7 +27,13 @@ type ApiCustomer = {
   full_name?: string;
   email: string;
   userCode?: string;
-  address?: { city?: string };
+  address?: { street?: string; city?: string; state?: string; zip_code?: string; country?: string };
+  phone?: string;
+  branch?: string;
+  serviceTypeIDs?: string[];
+  email_verified?: boolean;
+  account_status?: string;
+  account_type?: string;
   member_since?: string;
 };
 
@@ -36,9 +42,13 @@ export default function CustomersPageClient() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "verified" | "pending">("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | "active" | "inactive">("all");
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
+  const [showMessage, setShowMessage] = useState<{ userCode: string; name: string } | null>(null);
+  const [messageForm, setMessageForm] = useState({ subject: "", body: "" });
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -71,7 +81,6 @@ export default function CustomersPageClient() {
         ? data
         : Array.isArray(data?.customers)
         ? (data.customers as ApiCustomer[]).map((it) => {
-            // Map API shape to this client's expected fields for display
             const name: string = it.full_name || "";
             const parts = String(name).trim().split(/\s+/);
             const lastName = parts.length > 1 ? String(parts.pop()) : "";
@@ -82,8 +91,17 @@ export default function CustomersPageClient() {
               firstName,
               lastName,
               email: it.email,
-              branch: it.address?.city || "",
-              serviceTypeIDs: [],
+              phone: it.phone || "",
+              branch: it.branch || it.address?.city || "",
+              street: it.address?.street || "",
+              city: it.address?.city || "",
+              state: it.address?.state || "",
+              zip: it.address?.zip_code || "",
+              country: it.address?.country || "",
+              status: it.account_status || "active",
+              emailVerified: Boolean(it.email_verified),
+              accountType: it.account_type || "Basic",
+              serviceTypeIDs: it.serviceTypeIDs || [],
               createdAt: it.member_since,
             } as Customer;
           })
@@ -151,6 +169,15 @@ export default function CustomersPageClient() {
       c.email.toLowerCase().includes(q) ||
       `${c.firstName} ${c.lastName}`.toLowerCase().includes(q)
     );
+  });
+  const filteredByStatus = filtered.filter((c) => {
+    if (statusFilter === "verified") return Boolean(c.emailVerified);
+    if (statusFilter === "pending") return !c.emailVerified;
+    return true;
+  }).filter((c) => {
+    if (typeFilter === "active") return (c.status || "active").toLowerCase() === "active";
+    if (typeFilter === "inactive") return (c.status || "active").toLowerCase() === "inactive";
+    return true;
   });
 
   async function submitForm(e: React.FormEvent) {
@@ -221,18 +248,18 @@ export default function CustomersPageClient() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-2 text-sm">
             <label className="text-gray-600">Status:</label>
-            <select className="rounded border px-2 py-1">
-              <option>All</option>
-              <option>Verified</option>
-              <option>Pending</option>
+            <select className="rounded border px-2 py-1" value={statusFilter} onChange={(e)=>setStatusFilter(e.target.value as "all" | "verified" | "pending")}>
+              <option value="all">All</option>
+              <option value="verified">Verified</option>
+              <option value="pending">Pending</option>
             </select>
           </div>
           <div className="flex items-center gap-2 text-sm">
             <label className="text-gray-600">Type:</label>
-            <select className="rounded border px-2 py-1">
-              <option>All</option>
-              <option>Active</option>
-              <option>Inactive</option>
+            <select className="rounded border px-2 py-1" value={typeFilter} onChange={(e)=>setTypeFilter(e.target.value.toLowerCase() as "all" | "active" | "inactive")}>
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
             </select>
           </div>
         </div>
@@ -244,12 +271,12 @@ export default function CustomersPageClient() {
       <div className="grid gap-4">
         {loading ? (
           <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600">Loading...</div>
-        ) : filtered.length === 0 ? (
+        ) : filteredByStatus.length === 0 ? (
           <div className="rounded-xl border border-gray-200 bg-white p-6 text-sm text-gray-600">No customers found</div>
         ) : (
-          filtered.map((c) => {
+          filteredByStatus.map((c) => {
             const name = `${c.firstName} ${c.lastName}`.trim();
-            const verified = Boolean(c.email);
+            const verified = Boolean(c.emailVerified);
             const memberSince = c.createdAt ? new Date(c.createdAt).toLocaleString('default', { month: 'short', year: 'numeric' }) : undefined;
             return (
               <div key={c._id} className="relative rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -267,14 +294,13 @@ export default function CustomersPageClient() {
                     <div className="truncate">{c.email}</div>
                     <div className="truncate">{c.branch || '-'}</div>
                     <div className="flex items-center gap-2 text-gray-600">
-                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" /> Active
+                      <span className={`inline-flex h-2 w-2 rounded-full ${((c.status||'active').toLowerCase()==='active')?'bg-emerald-500':'bg-gray-400'}`} /> {(c.status||'active').charAt(0).toUpperCase() + (c.status||'active').slice(1)}
                     </div>
                     <div className="text-gray-600">{memberSince ? `Member since ${memberSince}` : ''}</div>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button className="rounded-md border px-3 py-1.5 text-sm" onClick={() => openEdit(c)}>Edit</button>
-                    <a className="rounded-md border px-3 py-1.5 text-sm" href={`/admin/customers/${c._id}`}>View</a>
-                    <a className="rounded-md border px-3 py-1.5 text-sm" href={`/admin/messages?to=${encodeURIComponent(c.userCode)}`}>Message</a>
+                    <button className="rounded-md border px-3 py-1.5 text-sm" onClick={() => { setShowMessage({ userCode: c.userCode, name: `${c.firstName} ${c.lastName}`.trim() || c.userCode }); setMessageForm({ subject: "", body: "" }); }}>Message</button>
                     <button className="rounded-md border px-3 py-1.5 text-sm text-red-700" onClick={() => deleteItem(c._id)}>Deactivate</button>
                   </div>
                 </div>
@@ -364,6 +390,32 @@ export default function CustomersPageClient() {
                 {editing && (
                   <button type="button" className="rounded border border-red-300 px-3 py-2 text-sm text-red-700" onClick={() => { if (editing) deleteItem(editing._id); }}>Delete Customer</button>
                 )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showMessage && (
+        <div className="fixed inset-0 bg-black/40 grid place-items-center p-4">
+          <div className="w-full max-w-lg rounded-lg bg-white text-black flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <div className="text-lg font-semibold">Send message to {showMessage.name}</div>
+              <button onClick={() => setShowMessage(null)} className="text-sm">✕</button>
+            </div>
+            <form className="px-5 py-4 space-y-3" onSubmit={async (e) => {
+              e.preventDefault();
+              const res = await fetch("/api/admin/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_code: showMessage.userCode, subject: messageForm.subject, body: messageForm.body }) });
+              const j = await res.json().catch(() => ({}));
+              if (!res.ok) { alert(j?.error || "Failed to send"); return; }
+              alert("Message sent.");
+              setShowMessage(null);
+            }}>
+              <input className="w-full border rounded px-3 py-2" placeholder="Subject (optional)" value={messageForm.subject} onChange={(e) => setMessageForm({ ...messageForm, subject: e.target.value })} />
+              <textarea className="w-full border rounded px-3 py-2 h-40" placeholder="Write your message..." value={messageForm.body} onChange={(e) => setMessageForm({ ...messageForm, body: e.target.value })} required />
+              <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                <button type="button" className="rounded border px-3 py-2 text-sm" onClick={() => setShowMessage(null)}>Cancel</button>
+                <button type="submit" className="rounded bg-blue-600 px-3 py-2 text-sm text-white">Send</button>
               </div>
             </form>
           </div>

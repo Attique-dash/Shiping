@@ -46,7 +46,14 @@ export async function POST(req: Request) {
   const userCode = user?.userCode || (payload.userCode as string | undefined);
   if (!userCode) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { amount, currency = "USD", method = "visa", reference, tracking_number } = parsed.data;
+  const { amount, currency = "USD", method = "visa", reference, tracking_number, billing } = parsed.data as {
+    amount: number;
+    currency?: string;
+    method?: string;
+    reference?: string;
+    tracking_number?: string;
+    billing?: Record<string, unknown> | undefined;
+  };
 
   // Simulate payment gateway
   // In real integration, call gateway (e.g. Stripe, Adyen), handle 3DS, webhooks, etc.
@@ -63,7 +70,7 @@ export async function POST(req: Request) {
     gatewayId,
     status,
     trackingNumber: tracking_number,
-    meta: { source: "customer_portal" },
+    meta: { source: "customer_portal", billing },
   });
 
   // TODO: send confirmation (email or notification)

@@ -1,5 +1,7 @@
 import { dbConnect } from "@/lib/db";
 import { Package } from "@/models/Package";
+import AddForm from "./AddForm";
+import Actions from "./Actions";
 
 type AdminPackage = {
   _id: string;
@@ -12,6 +14,12 @@ type AdminPackage = {
   branch?: string;
   createdAt?: string;
   updatedAt: string;
+  length?: number;
+  width?: number;
+  height?: number;
+  serviceTypeName?: string;
+  description?: string;
+  hasInvoice: boolean;
 };
 
 export default async function AdminPackagesPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
@@ -33,9 +41,8 @@ export default async function AdminPackagesPage({ searchParams }: { searchParams
   ];
   if (unknownOnly) query.$or = [{ status: "Unknown" }, { customer: { $exists: false } }, { customer: null }];
 
-  const sortSpec = sortParam === "oldest" ? { updatedAt: 1 } : { updatedAt: -1 };
   const raw = await Package.find(query)
-    .sort(sortSpec)
+    .sort([["updatedAt", (sortParam === "oldest" ? 1 : -1) as 1 | -1]])
     .limit(500)
     .lean<{
       _id: unknown;
@@ -52,6 +59,7 @@ export default async function AdminPackagesPage({ searchParams }: { searchParams
       description?: string;
       serviceTypeName?: string;
       invoiceRecords?: unknown[];
+      invoiceDocuments?: unknown[];
     }[]>();
   const packages: AdminPackage[] = raw.map((p) => ({
     _id: String(p._id),
@@ -70,13 +78,22 @@ export default async function AdminPackagesPage({ searchParams }: { searchParams
       typeof p.updatedAt === "string"
         ? p.updatedAt
         : p.updatedAt?.toISOString?.() ?? new Date().toISOString(),
+    length: p.length,
+    width: p.width,
+    height: p.height,
+    serviceTypeName: p.serviceTypeName,
+    description: p.description,
+    hasInvoice: Boolean((Array.isArray(p.invoiceRecords) && p.invoiceRecords.length > 0) || (Array.isArray(p.invoiceDocuments) && p.invoiceDocuments.length > 0)),
   }));
 
   return (
     <div className="mx-auto max-w-6xl p-6 space-y-5">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Package Management</h1>
-        <span className="text-sm text-gray-600">Total: {packages.length}</span>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">Package Management</h1>
+          <span className="text-sm text-gray-600">Total: {packages.length}</span>
+        </div>
+        <AddForm />
       </div>
       <FilterBar />
 
@@ -100,14 +117,20 @@ export default async function AdminPackagesPage({ searchParams }: { searchParams
                     <span>• {p.length ?? '-'}×{p.width ?? '-'}×{p.height ?? '-'} cm</span>
                   </div>
                   <div>📅 Received: {new Date(p.createdAt ?? p.updatedAt).toLocaleString()}</div>
-                  <div>🏷️ {p.serviceTypeName || p.description || '—'} • {Array.isArray((raw.find(r=>String(r._id)===p._id) as any)?.invoiceRecords) && (raw.find(r=>String(r._id)===p._id) as any)?.invoiceRecords.length>0 ? '📄 Invoice Submitted' : '⚠️ No Invoice'}</div>
+                  <div>🏷️ {p.serviceTypeName || p.description || '—'} • {p.hasInvoice ? '📄 Invoice Submitted' : '⚠️ No Invoice'}</div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <a href={`#`} className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50">Update</a>
-                <a href={`/admin/packages/${p._id}`} className="rounded-md bg-gray-900 px-3 py-1.5 text-sm text-white hover:bg-gray-800">View Details</a>
-                <a href={`#`} className="rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50">{(p as any).userCode ? 'Notify' : 'Assign'}</a>
-              </div>
+              <Actions
+                id={p._id}
+                trackingNumber={p.trackingNumber}
+                status={p.status}
+                weight={p.weight}
+                description={p.description}
+                branch={p.branch}
+                length={p.length}
+                width={p.width}
+                height={p.height}
+              />
             </div>
           </div>
         ))}

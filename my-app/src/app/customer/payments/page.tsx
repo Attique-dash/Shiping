@@ -14,17 +14,22 @@ type Payment = {
   createdAt?: string;
 };
 
+type CustomerBill = {
+  amount_due: number;
+  currency?: string;
+};
+
 export default function CustomerPaymentsPage() {
   const [items, setItems] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Card panel
-  const [form, setForm] = useState({ amount: "", currency: "USD", method: "card", reference: "", tracking_number: "", cardholder: "", exp: "", cvc: "" });
+  const [form, setForm] = useState({ amount: "", currency: "USD", method: "visa", reference: "", tracking_number: "", cardholder: "", exp: "", cvc: "" });
   // Billing panel
   const [billing, setBilling] = useState({ fullName: "", address: "", city: "", state: "", zip: "", sameAsShipping: true });
   // Bills (to compute due)
-  const [bills, setBills] = useState<Array<{ amount_due: number; currency?: string }>>([]);
+  const [bills, setBills] = useState<CustomerBill[]>([]);
 
   async function load() {
     setLoading(true);
@@ -43,19 +48,24 @@ export default function CustomerPaymentsPage() {
 
   useEffect(() => {
     load();
+    const id = setInterval(() => {
+      load();
+    }, 30000);
+    return () => clearInterval(id);
   }, []);
 
   // Load bills to compute outstanding amount
   useEffect(() => {
     fetch("/api/customer/bills", { cache: "no-store" })
       .then(async (r) => {
-        const d = await r.json();
+        const d: { bills?: CustomerBill[]; error?: string } = await r.json();
         if (!r.ok) throw new Error(d?.error || "Failed to load bills");
-        const list = Array.isArray(d?.bills) ? d.bills : [];
-        setBills(list.map((b: any) => ({ amount_due: Number(b.amount_due) || 0, currency: b.currency || "USD" })));
-        const total = list.reduce((s: number, b: any) => s + (Number(b.amount_due) || 0), 0);
+        const list: CustomerBill[] = Array.isArray(d?.bills) ? d.bills : [];
+        setBills(list.map((b) => ({ amount_due: Number(b.amount_due) || 0, currency: b.currency || "USD" })));
+        const total = list.reduce((s: number, b) => s + (Number(b.amount_due) || 0), 0);
         // Pre-fill amount
-        setForm((f) => ({ ...f, amount: total ? String(total) : f.amount, currency: (list.find((b: any) => b.currency)?.currency) || f.currency }));
+        const detectedCurrency = list.find((b) => Boolean(b.currency))?.currency;
+        setForm((f) => ({ ...f, amount: total ? String(total) : f.amount, currency: detectedCurrency || f.currency }));
       })
       .catch(() => {});
   }, []);
@@ -82,7 +92,7 @@ export default function CustomerPaymentsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Payment failed");
-      setForm({ amount: "", currency: ccy, method: "card", reference: "", tracking_number: "", cardholder: "", exp: "", cvc: "" });
+      setForm({ amount: "", currency: ccy, method: "visa", reference: "", tracking_number: "", cardholder: "", exp: "", cvc: "" });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed");
@@ -93,6 +103,9 @@ export default function CustomerPaymentsPage() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold">Complete Your Payment</h1>
@@ -122,10 +135,20 @@ export default function CustomerPaymentsPage() {
           </div>
         </div>
 
-        {/* Pay with Card */}
+        {/* Payment */}
         <div className="rounded-xl border bg-white p-5 shadow-sm">
-          <div className="mb-3 text-sm font-semibold">Pay with Card</div>
+          <div className="mb-3 text-sm font-semibold">Payment</div>
           <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm text-gray-700">Method</label>
+              <select className="rounded-md border px-3 py-2" value={form.method} onChange={(e) => setForm({ ...form, method: e.target.value })}>
+                <option value="visa">Visa</option>
+                <option value="mastercard">Mastercard</option>
+                <option value="amex">AmEx</option>
+                <option value="bank">Bank</option>
+                <option value="wallet">Wallet</option>
+              </select>
+            </div>
             <input className="w-full rounded-md border px-3 py-2" placeholder="Cardholder Name" value={form.cardholder} onChange={(e) => setForm({ ...form, cardholder: e.target.value })} />
             <div className="grid grid-cols-2 gap-3">
               <input className="rounded-md border px-3 py-2" placeholder="Expiration (MM/YY)" value={form.exp} onChange={(e) => setForm({ ...form, exp: e.target.value })} />

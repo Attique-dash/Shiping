@@ -54,7 +54,8 @@ export default function AdminPosPage() {
   }, []);
 
   const subtotal = services.reduce((sum, s) => sum + (selected[s.key] ? s.amount : 0), 0);
-  const tax = Math.round(subtotal * 0.1 * 100) / 100; // 10% example
+  const TAX_RATE = Number(process.env.NEXT_PUBLIC_POS_TAX_RATE ?? 0.1) || 0;
+  const tax = Math.round(subtotal * TAX_RATE * 100) / 100;
   const total = Math.round((subtotal + tax) * 100) / 100;
 
   async function onSubmit(e: React.FormEvent) {
@@ -138,7 +139,7 @@ export default function AdminPosPage() {
             </div>
             <div className="mt-4 grid gap-2 text-sm text-gray-700">
               <div className="flex items-center justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(2)}</span></div>
-              <div className="flex items-center justify-between"><span>Tax:</span><span>${tax.toFixed(2)}</span></div>
+              <div className="flex items-center justify-between"><span>Tax ({(TAX_RATE*100).toFixed(0)}%):</span><span>${tax.toFixed(2)}</span></div>
               <div className="flex items-center justify-between font-semibold text-gray-900"><span>Total:</span><span>${total.toFixed(2)}</span></div>
             </div>
             <div className="mt-4 flex items-center justify-between">

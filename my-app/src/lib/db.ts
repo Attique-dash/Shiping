@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 const MONGODB_URI = process.env.MONGODB_URI as string;
 const MONGODB_DB = process.env.MONGODB_DB || "courier_app";
 const TLS_INSECURE = String(process.env.MONGODB_TLS_INSECURE || "").toLowerCase() === "true";
+const TLS_ENABLED = String(process.env.MONGODB_TLS || "").toLowerCase() === "true";
+const TLS_CA_FILE = process.env.MONGODB_TLS_CA_FILE || ""; // absolute path to CA bundle if needed
 
 if (!MONGODB_URI) {
   console.warn("MONGODB_URI is not set. Please configure it in your environment.");
@@ -32,6 +34,15 @@ export async function dbConnect() {
       dbName: MONGODB_DB,
       serverSelectionTimeoutMS: 15000,
     };
+    // TLS configuration
+    // If your cluster requires TLS and you're not using SRV, enable via env.
+    if (TLS_ENABLED) {
+      (connOpts as any).tls = true;
+    }
+    // Provide custom CA bundle (e.g., corporate proxy root CA) if needed.
+    if (TLS_CA_FILE) {
+      (connOpts as any).tlsCAFile = TLS_CA_FILE;
+    }
     // Optionally allow insecure TLS for corporate proxies/SSL interception environments.
     // Do NOT use in production; prefer fixing root CA/proxy config.
     if (TLS_INSECURE) {

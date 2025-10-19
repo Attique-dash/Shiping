@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 
   const total_count = await User.countDocuments(filter);
   const customers = await User.find(filter)
-    .select("firstName lastName email phone address createdAt accountStatus userCode emailVerified")
+    .select("firstName lastName email phone address createdAt accountStatus userCode emailVerified accountType branch serviceTypeIDs")
     .sort({ createdAt: -1 })
     .skip((page - 1) * per_page)
     .limit(per_page);
@@ -65,8 +65,11 @@ export async function GET(req: Request) {
     const member_since = u.createdAt ? u.createdAt.toISOString() : undefined;
     const address = u.address
       ? {
+          street: u.address.street,
           city: u.address.city,
           state: u.address.state,
+          zip_code: u.address.zipCode,
+          country: u.address.country,
         }
       : undefined;
     return {
@@ -75,9 +78,12 @@ export async function GET(req: Request) {
       full_name,
       email: u.email,
       phone: u.phone,
+      branch: u.branch,
+      serviceTypeIDs: u.serviceTypeIDs || [],
       address,
       email_verified: Boolean(u.emailVerified),
       account_status: u.accountStatus || "active",
+      account_type: u.accountType,
       package_count: countsByUserCode.get(u.userCode) || 0,
       member_since,
     };

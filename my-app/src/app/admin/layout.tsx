@@ -16,6 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <SideLink href="/admin/unknown-packages" label="Unknown Pkgs" icon="❓" title="Purpose: Handle unassigned packages | Endpoint: GET /api/admin/packages/unknown" />
             <SideLink href="/admin/pre-alerts" label="Pre-Alerts" icon="⚠️" title="Purpose: Manage incoming shipment notifications | Endpoint: GET /api/admin/pre-alerts" />
             <SideLink href="/admin/customers" label="Customers" icon="👥" title="Purpose: Customer management | Endpoint: GET /api/admin/customers" />
+            <SideLink href="/admin/staff" label="Staff" icon="🛠️" title="Purpose: Manage warehouse staff accounts | Endpoint: GET /api/admin/staff" />
             <SideLink href="/admin/shipments" label="Shipments" icon="🚚" title="Purpose: Manage manifests and batches | Endpoint: POST /api/warehouse/manifests/update" />
             <SideLink href="/admin/broadcasts" label="Broadcast Messages" icon="📣" title="Purpose: Send announcements | Endpoint: POST /api/admin/broadcast-messages" />
             <SideLink href="/admin/receivals" label="Receivals" icon="📥" title="Purpose: Manage incoming receipts | Endpoint: POST /api/warehouse/packages/add" />
