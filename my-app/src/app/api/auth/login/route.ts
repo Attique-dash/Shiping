@@ -64,12 +64,12 @@ export async function POST(req: Request) {
       console.warn("[login] Failed to update lastLogin", e);
     }
 
-    const token = signToken({ uid: user._id, role: user.role, userCode: user.userCode, adminRole: user.adminRole || (user.role === "admin" ? "admin" : undefined) });
+    const token = signToken({ uid: user._id, role: user.role, userCode: user.userCode });
 
     // Set cookie on the response to avoid using cookies() after awaited work
     const res = NextResponse.json({
       message: "Logged in",
-      user: { id: user._id, email: user.email, role: user.role, userCode: user.userCode, adminRole: user.adminRole || (user.role === "admin" ? "admin" : undefined) },
+      user: { id: user._id, email: user.email, role: user.role, userCode: user.userCode },
     });
     res.cookies.set("auth_token", token, {
       httpOnly: true,

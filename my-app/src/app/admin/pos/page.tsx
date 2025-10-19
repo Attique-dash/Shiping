@@ -41,10 +41,16 @@ export default function AdminPosPage() {
     fetch("/api/admin/customers", { cache: "no-store" })
       .then((r) => r.json())
       .then((d) => {
-        const list = Array.isArray(d?.items) ? d.items : Array.isArray(d) ? d : [];
+        const list = Array.isArray(d?.customers)
+          ? d.customers
+          : Array.isArray(d?.items)
+          ? d.items
+          : Array.isArray(d)
+          ? d
+          : [];
         const mapped = list.map((c: any) => ({
-          id: String(c._id ?? c.id ?? c.userCode ?? Math.random()),
-          name: c.name ?? c.fullName ?? c.email ?? c.userCode ?? "Customer",
+          id: String(c.customer_id ?? c._id ?? c.id ?? c.userCode ?? Math.random()),
+          name: c.full_name ?? c.name ?? c.email ?? c.userCode ?? "Customer",
           email: c.email,
           userCode: c.userCode,
         }));

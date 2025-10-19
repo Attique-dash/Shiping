@@ -1,5 +1,4 @@
 import { Schema, model, models } from "mongoose";
-import type { AdminRole } from "@/lib/permissions";
 
 export type UserRole = "admin" | "customer" | "warehouse";
 
@@ -21,7 +20,6 @@ export interface IUser {
     country?: string;
   };
   role: UserRole;
-  adminRole?: AdminRole;
   accountStatus?: "active" | "inactive";
   lastLogin?: Date;
   emailVerified?: boolean;
@@ -57,7 +55,6 @@ const UserSchema = new Schema<IUser>(
     emailVerified: { type: Boolean, default: false },
     accountType: { type: String },
     role: { type: String, enum: ["admin", "customer", "warehouse"], default: "customer" },
-    adminRole: { type: String, enum: ["super_admin", "admin", "support"], default: undefined },
   },
   { timestamps: true }
 );

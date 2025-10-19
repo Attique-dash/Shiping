@@ -58,9 +58,16 @@ export default function InvoiceUploadPage() {
       .then(async (r) => {
         const data = await r.json();
         if (r.ok) {
-          const items = (data.items || []) as Pkg[];
+          const list = Array.isArray(data?.packages) ? data.packages : [];
+          const items: Pkg[] = list.map((p: any) => ({
+            _id: String(p.id || p._id || ""),
+            trackingNumber: String(p.tracking_number || p.trackingNumber || ""),
+            status: p.status,
+            description: p.description,
+            updatedAt: p.updated_at || p.updatedAt,
+          }));
           setPackages(items);
-          if (items.length > 0) setSelectedId((items as any)[0]._id || "");
+          if (items.length > 0) setSelectedId(items[0]._id || "");
         } else {
           setError(data?.error || "Failed to load packages");
         }

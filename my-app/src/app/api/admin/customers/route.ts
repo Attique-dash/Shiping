@@ -6,7 +6,6 @@ import { Types, FilterQuery } from "mongoose";
 import { hashPassword } from "@/lib/auth";
 import { getAuthFromRequest } from "@/lib/rbac";
 import { adminCreateCustomerSchema, adminUpdateCustomerSchema, adminDeleteCustomerSchema } from "@/lib/validators";
-import { hasPermission, type AdminRole } from "@/lib/permissions";
 import { logAudit } from "@/lib/audit";
 
 export async function GET(req: Request) {
@@ -14,10 +13,6 @@ export async function GET(req: Request) {
   const payload = getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const ar = (payload && (payload as { adminRole?: AdminRole }).adminRole) as AdminRole | undefined;
-  if (!ar || !hasPermission(ar, "customers:read")) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
   const url = new URL(req.url);
@@ -104,10 +99,6 @@ export async function POST(req: Request) {
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const ar = (payload && (payload as { adminRole?: AdminRole }).adminRole) as AdminRole | undefined;
-  if (!ar || !hasPermission(ar, "customers:write")) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
-  }
 
   let raw: unknown;
   try {
@@ -179,8 +170,8 @@ export async function POST(req: Request) {
   });
   // Audit log create
   await logAudit({
-    userId: String((payload as any).uid || (payload as any)._id || ""),
-    userEmail: String((payload as any).email || ""),
+    userId: String((payload as { _id?: string; uid?: string; email?: string } | null)?.uid || (payload as { _id?: string } | null)?._id || ""),
+    userEmail: String((payload as { email?: string } | null)?.email || ""),
     action: "create",
     resource: "customer",
     resourceId: String(created._id),
@@ -249,8 +240,8 @@ export async function PUT(req: Request) {
   if (!updated) return NextResponse.json({ error: "Not found" }, { status: 404 });
   // Audit log update
   await logAudit({
-    userId: String((payload as any).uid || (payload as any)._id || ""),
-    userEmail: String((payload as any).email || ""),
+    userId: String((payload as { _id?: string; uid?: string; email?: string } | null)?.uid || (payload as { _id?: string } | null)?._id || ""),
+    userEmail: String((payload as { email?: string } | null)?.email || ""),
     action: "update",
     resource: "customer",
     resourceId: trimmedId,
@@ -268,10 +259,6 @@ export async function DELETE(req: Request) {
   const payload = getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  const ar = (payload && (payload as { adminRole?: AdminRole }).adminRole) as AdminRole | undefined;
-  if (!ar || !hasPermission(ar, "customers:delete")) {
-    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
   }
 
   let raw: unknown;
@@ -294,8 +281,8 @@ export async function DELETE(req: Request) {
   if (!deleted) return NextResponse.json({ error: "Not found" }, { status: 404 });
   // Audit log delete
   await logAudit({
-    userId: String((payload as any).uid || (payload as any)._id || ""),
-    userEmail: String((payload as any).email || ""),
+    userId: String((payload as { _id?: string; uid?: string; email?: string } | null)?.uid || (payload as { _id?: string } | null)?._id || ""),
+    userEmail: String((payload as { email?: string } | null)?.email || ""),
     action: "delete",
     resource: "customer",
     resourceId: trimmedId,
