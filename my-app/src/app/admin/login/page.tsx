@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 
 export default function AdminLoginPage() {
   const params = useSearchParams();
@@ -44,12 +45,10 @@ export default function AdminLoginPage() {
     <div className="relative min-h-[80vh] grid place-items-center overflow-hidden bg-[radial-gradient(1200px_500px_at_50%_-10%,#172437_0%,#0d1623_60%,#0b1320_100%)]">
       <div className="relative z-10 w-full max-w-4xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 backdrop-blur-md shadow-[0_10px_40px_rgba(0,0,0,.35)]">
-          {/* Left brand panel */}
-          <div className="hidden md:flex flex-col items-center justify-center gap-4 p-10 text-white bg-gradient-to-br from-white/5 to-white/0">
-            <img src="/logo.svg" alt="Tasoko" className="h-20 w-20 drop-shadow-[0_0_12px_#29d3ff]" />
-            <div className="text-center">
-              <div className="text-2xl font-semibold tracking-wide">TASOKO</div>
-              <div className="text-sm uppercase tracking-widest text-[#7ee3ff]">Courier</div>
+          {/* Left: illustrative image */}
+          <div className="relative hidden md:block">
+            <div className="relative min-h-[360px] md:min-h-[480px]">
+              <Image src="/images/auth.png" alt="Authentication" fill priority className="object-cover" />
             </div>
           </div>
 

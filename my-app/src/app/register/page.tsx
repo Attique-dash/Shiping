@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -20,6 +21,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState<{ type: "error" | "success"; msg: string } | null>(null);
 
   function validate(): string | null {
     if (!/^\d{11}$/.test(form.phoneNo)) return "Phone number must be exactly 11 digits";
@@ -28,6 +30,22 @@ export default function RegisterPage() {
     if (!form.agree) return "You must agree to Terms & Privacy";
     return null;
   }
+
+  useEffect(() => {
+    if (error) {
+      setShowToast({ type: "error", msg: error });
+      const t = setTimeout(() => setShowToast(null), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [error]);
+
+  useEffect(() => {
+    if (success) {
+      setShowToast({ type: "success", msg: success });
+      const t = setTimeout(() => setShowToast(null), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [success]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,29 +88,55 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-0px)] bg-gray-50">
-      <div className="mx-auto max-w-5xl px-6 py-16">
-        <div className="mx-auto max-w-3xl rounded-2xl bg-white p-8 shadow-xl ring-1 ring-gray-100">
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-extrabold tracking-tight md:text-3xl">Create your account</h1>
-          </div>
-          <form onSubmit={onSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+    <div
+      className="min-h-screen bg-[#FAF4ED] flex items-center"
+      style={{ backgroundImage: "url('/images/airplane.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}
+    >
+      {/* Toast top-center */}
+      {showToast && (
+        <div className={`fixed left-1/2 top-4 z-[80] -translate-x-1/2 rounded-md px-4 py-2 text-sm font-semibold text-white shadow-lg ${showToast.type === 'error' ? 'bg-red-600' : 'bg-green-600'}`}>
+          {showToast.msg}
+        </div>
+      )}
+
+                <div className="relative mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8 md:py-10">
+<div className="mx-auto grid w-full grid-cols-1 items-stretch gap-0 overflow-hidden rounded-2xl bg-white/95 shadow-2xl ring-1 ring-black/5 sm:max-w-3xl md:max-w-6xl lg:max-w-7xl md:grid-cols-7">
+{/* Left: illustrative image */}
+  <div className="hidden md:block relative bg-white md:col-span-3 h-full">
+    <div className="relative h-48 sm:h-56 md:h-full overflow-hidden">
+    <Image
+        src="/images/auth.png"
+        alt="Authentication"
+        fill
+        priority
+        className="object-cover"
+      />
+  </div>
+</div>
+
+
+          {/* Right: form */}
+  <div className="border-t md:border-t-0 md:border-l border-orange-200 bg-white px-6 py-6 md:col-span-4">
+            <div className="mx-auto w-full">
+              <h1 className="text-2xl md:text-3xl font-extrabold text-[#0E7893]">Create your account</h1>
+              <p className="mt-1 text-sm text-[#E67919]">Fill in your details to get started.</p>
+              <form onSubmit={onSubmit} className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 md:gap-x-5 lg:gap-x-6">
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="Full Name"
               value={form.fullName}
               onChange={(e) => setForm({ ...form, fullName: e.target.value })}
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="Address"
               value={form.adress}
               onChange={(e) => setForm({ ...form, adress: e.target.value })}
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               type="email"
               placeholder="Email"
               value={form.email}
@@ -100,28 +144,28 @@ export default function RegisterPage() {
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="City"
               value={form.city}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="Phone Number"
               value={form.phoneNo}
               onChange={(e) => setForm({ ...form, phoneNo: e.target.value })}
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="State / Province"
               value={form.state}
               onChange={(e) => setForm({ ...form, state: e.target.value })}
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               type="password"
               placeholder="Password"
               value={form.password}
@@ -129,14 +173,14 @@ export default function RegisterPage() {
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="Zip / Postal Code"
               value={form.zip_code}
               onChange={(e) => setForm({ ...form, zip_code: e.target.value })}
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               type="password"
               placeholder="Confirm Password"
               value={form.confirmPassword}
@@ -144,14 +188,14 @@ export default function RegisterPage() {
               required
             />
             <input
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#E67919]"
               placeholder="Country"
               value={form.country}
               onChange={(e) => setForm({ ...form, country: e.target.value })}
               required
             />
 
-            <label className="col-span-1 md:col-span-2 mt-2 flex items-center gap-2 text-sm text-gray-600">
+            <label className="col-span-1 md:col-span-2 lg:col-span-3 mt-2 flex items-center gap-2 text-sm text-gray-600">
               <input
                 type="checkbox"
                 checked={form.agree}
@@ -161,24 +205,27 @@ export default function RegisterPage() {
             </label>
 
             {error && (
-              <div className="col-span-1 md:col-span-2 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">{error}</div>
             )}
             {success && (
-              <div className="col-span-1 md:col-span-2 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700">{success}</div>
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 rounded-md bg-green-50 px-4 py-2 text-sm text-green-700">{success}</div>
             )}
 
             <button
               disabled={loading}
-              className="col-span-1 md:col-span-2 mt-2 w-full rounded-xl bg-blue-600 py-3 text-sm font-semibold text-white shadow hover:bg-blue-700 disabled:opacity-60"
+              className="col-span-1 cursor-pointer md:col-span-2 lg:col-span-3 mt-2 w-full rounded-md bg-[#E67919] py-3 text-sm font-semibold text-white shadow transition-colors hover:bg-[#0E7893] disabled:opacity-60"
             >
               {loading ? "Creating..." : "Register"}
             </button>
           </form>
-          <div className="mt-6 text-center text-sm text-gray-600">
-            Already have an account? <Link href="/login" className="text-blue-600 hover:underline">Log in</Link>
+          <div className="mt-4 text-center text-sm text-gray-700">
+            Already have an account? <Link href="/login" className="text-[#0E7893] hover:underline">Log in</Link>
           </div>
         </div>
       </div>
+      {/* end grid */}
     </div>
+  </div>
+  </div>
   );
 }
