@@ -4,6 +4,7 @@ import { PreAlert } from "@/models/PreAlert";
 import { Payment } from "@/models/Payment";
 import { User } from "@/models/User";
 import Link from "next/link";
+import Image from "next/image";
 
 export default async function AdminDashboard() {
   await dbConnect();
@@ -83,7 +84,7 @@ export default async function AdminDashboard() {
           </div>
           <div className="hidden gap-2 sm:flex">
             <Link href="/admin/packages" className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Add Package</Link>
-            <Link href="/admin/reports" className="inline-flex items-center rounded-md bg-[#0f4d8a] px-3 py-2 text-sm font-medium text-white hover:bg-[#0e447d]">View Reports</Link>
+            <Link href="/admin/reporting" className="inline-flex items-center rounded-md bg-[#E67919] px-3 py-2 text-sm font-medium text-white hover:bg-gray-900">View Reports</Link>
           </div>
         </div>
       </section>
@@ -97,16 +98,35 @@ export default async function AdminDashboard() {
               <span>Today’s Overview</span>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              <Kpi title="Total Pkgs" value={totalPackages} />
-              <Kpi title="New Today" value={newToday} />
-              <Kpi title="Pending Alerts" value={pendingAlerts} />
-              <Kpi title="Revenue Today" value={`$${revenueToday.toFixed(2)}`} />
+              <Kpi title="Total Pkgs" value={totalPackages} color="from-sky-500 to-sky-600" />
+              <Kpi title="New Today" value={newToday} color="from-cyan-500 to-cyan-600" />
+              <Kpi title="Pending Alerts" value={pendingAlerts} color="from-blue-500 to-blue-600" />
+              <Kpi title="Revenue Today" value={`$${revenueToday.toFixed(2)}`} color="from-indigo-500 to-indigo-600" />
               {/* Extra KPI card with manage action to mirror the visual */}
               <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div className="text-xs uppercase tracking-wide text-gray-500">Revenue Today</div>
                 <div className="mt-1 text-2xl font-semibold text-gray-900">${revenueToday.toFixed(0)}K</div>
                 <div className="mt-2">
                   <Link href="/admin/transactions" className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-800">Manage</Link>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Banner */}
+          <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="relative h-36 w-full sm:h-44">
+              <div className="absolute inset-0 bg-gradient-to-r from-[#0f4d8a] to-[#0e7893] opacity-90" />
+              <Image
+                src="/banner.jpg"
+                alt="Courier & Delivery"
+                fill
+                priority
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="relative z-10 flex h-full items-center px-4 sm:px-6">
+                <div className="max-w-xl text-white">
+                  <p className="text-lg font-semibold sm:text-xl">Reliable Courier & Delivery Services You Can Count On</p>
                 </div>
               </div>
             </div>
@@ -220,8 +240,8 @@ export default async function AdminDashboard() {
           <section className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-2 font-medium">Quick Actions</div>
             <div className="flex gap-2">
-              <Link href="/admin/packages" className="inline-flex flex-1 items-center justify-center rounded-md bg-[#0f4d8a] px-3 py-2 text-sm font-medium text-white hover:bg-[#0e447d]">Add Package</Link>
-              <Link href="/admin/reports" className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">View Reports</Link>
+              <Link href="/admin/packages" className="inline-flex flex-1 items-center justify-center rounded-md bg-[#E67919] px-3 py-2 text-sm font-medium text-white hover:bg-gray-900">Add Package</Link>
+              <Link href="/admin/reporting" className="inline-flex flex-1 items-center justify-center rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">View Reports</Link>
             </div>
           </section>
         </aside>
@@ -230,15 +250,15 @@ export default async function AdminDashboard() {
   );
 }
 
-function Kpi({ title, value }: { title: string; value: string | number }) {
+function Kpi({ title, value, color }: { title: string; value: string | number; color?: string }) {
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="text-xs uppercase tracking-wide text-gray-500">{title}</div>
-      <div className="mt-1 text-2xl font-semibold text-gray-900">{value}</div>
+    <div className="rounded-lg p-4 shadow-sm ring-1 ring-black/5">
+      <div className={`rounded-md bg-gradient-to-b ${color ?? "from-slate-100 to-slate-200"} px-3 py-2 text-white`}>
+        <div className="text-xs uppercase tracking-wide/relaxed opacity-90">{title}</div>
+        <div className="mt-1 text-2xl font-semibold">{value}</div>
+      </div>
     </div>
   );
 }
 
-function Avatar({ children }: { children: React.ReactNode }) {
-  return <div className="grid h-7 w-7 place-items-center rounded-full bg-gray-100 text-xs font-semibold text-gray-700">{children}</div>;
-}
+// Removed unused Avatar component

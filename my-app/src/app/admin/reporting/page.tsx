@@ -78,10 +78,9 @@ export default async function ReportingPage() {
             <AlertRow icon="📢" text={`${largePayments} oversize payments`} />
 
             <div className="pt-2 grid grid-cols-2 gap-2">
-              <Link href="/admin/receivals" className="rounded-md border px-3 py-2 text-center text-sm hover:bg-gray-50">Add Package</Link>
-              <Link href="/admin/customers" className="rounded-md border px-3 py-2 text-center text-sm hover:bg-gray-50">Create User</Link>
-              <Link href="/admin/customers" className="rounded-md border px-3 py-2 text-center text-sm hover:bg-gray-50">Create User</Link>
-              <Link href="/admin/reporting?download=packages" className="rounded-md bg-blue-600 px-3 py-2 text-center text-sm text-white hover:bg-blue-700">Generate Report</Link>
+              <Link href="/admin/receivals" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-center text-sm hover:bg-gray-50">Add Package</Link>
+              <Link href="/admin/customers" className="rounded-md border border-gray-200 bg-white px-3 py-2 text-center text-sm hover:bg-gray-50">Create User</Link>
+              <Link href="/admin/reporting?download=packages" className="rounded-md bg-[#E67919] px-3 py-2 text-center text-sm text-white hover:bg-gray-900">Generate Report</Link>
             </div>
           </div>
         </div>

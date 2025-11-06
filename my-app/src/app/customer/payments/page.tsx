@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 
 type Payment = {
   _id: string;
@@ -19,17 +21,30 @@ type CustomerBill = {
   currency?: string;
 };
 
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
 export default function CustomerPaymentsPage() {
+  return (
+    <Elements stripe={stripePromise}>
+      <CustomerPaymentsInner />
+    </Elements>
+  );
+}
+
+function CustomerPaymentsInner() {
   const [items, setItems] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   // Card panel
-  const [form, setForm] = useState({ amount: "", currency: "USD", method: "visa", reference: "", tracking_number: "", cardNumber: "", cardholder: "", exp: "", cvc: "" });
+  const [form, setForm] = useState({ amount: "", currency: "USD", method: "visa", reference: "", tracking_number: "" });
   // Billing panel
   const [billing, setBilling] = useState({ fullName: "", address: "", city: "", state: "", zip: "", sameAsShipping: true });
   // Bills (to compute due)
   const [bills, setBills] = useState<CustomerBill[]>([]);
+
+  const stripe = useStripe();
+  const elements = useElements();
 
   async function load() {
     setLoading(true);
@@ -73,58 +88,13 @@ export default function CustomerPaymentsPage() {
   const totalDue = useMemo(() => bills.reduce((s, b) => s + (Number(b.amount_due) || 0), 0), [bills]);
   const ccy = useMemo(() => bills.find((b) => b.currency)?.currency || form.currency || "USD", [bills, form.currency]);
 
-  function validateCardNumber(number: string): boolean {
-    const digits = (number || "").replace(/\D/g, "");
-    if (digits.length < 13 || digits.length > 19) return false;
-    let sum = 0;
-    let isEven = false;
-    for (let i = digits.length - 1; i >= 0; i--) {
-      let digit = parseInt(digits[i]!, 10);
-      if (Number.isNaN(digit)) return false;
-      if (isEven) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-      sum += digit;
-      isEven = !isEven;
-    }
-    return sum % 10 === 0;
-  }
-
-  function validateExpiry(exp: string): boolean {
-    const match = (exp || "").match(/^(\d{2})\/(\d{2})$/);
-    if (!match) return false;
-    const month = parseInt(match[1]!, 10);
-    const year = parseInt("20" + match[2], 10);
-    if (month < 1 || month > 12) return false;
-    const now = new Date();
-    const startOfMonthAfterNow = new Date(now.getFullYear(), now.getMonth(), 1);
-    const expDate = new Date(year, month - 1, 1);
-    return expDate >= startOfMonthAfterNow;
-  }
-
-  function validateCVC(cvc: string): boolean {
-    return /^\d{3,4}$/.test(cvc || "");
-  }
+  // Card validation is handled by Stripe Elements, so we can remove manual validators.
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (form.method === "visa" || form.method === "mastercard" || form.method === "amex") {
-      if (!validateCardNumber(form.cardNumber)) {
-        setError("Invalid card number");
-        return;
-      }
-      if (!validateExpiry(form.exp)) {
-        setError("Invalid or expired card");
-        return;
-      }
-      if (!validateCVC(form.cvc)) {
-        setError("Invalid CVC");
-        return;
-      }
-    }
+    const isCard = form.method === "visa" || form.method === "mastercard" || form.method === "amex";
 
     setSaving(true);
     try {
@@ -142,7 +112,31 @@ export default function CustomerPaymentsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Payment failed");
-      setForm({ amount: "", currency: ccy, method: "visa", reference: "", tracking_number: "", cardNumber: "", cardholder: "", exp: "", cvc: "" });
+
+      if (isCard) {
+        if (!stripe || !elements) throw new Error("Stripe not ready");
+        const card = elements.getElement(CardElement);
+        if (!card) throw new Error("Card element not found");
+        const result = await stripe.confirmCardPayment(data.client_secret, {
+          payment_method: {
+            card,
+            billing_details: {
+              name: billing.fullName,
+              address: {
+                line1: billing.address,
+                city: billing.city,
+                state: billing.state,
+                postal_code: billing.zip,
+              },
+            },
+          },
+        });
+        if (result.error) {
+          throw new Error(result.error.message || "Card confirmation failed");
+        }
+      }
+
+      setForm({ amount: "", currency: ccy, method: "visa", reference: "", tracking_number: "" });
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed");
@@ -199,11 +193,10 @@ export default function CustomerPaymentsPage() {
                 <option value="wallet">Wallet</option>
               </select>
             </div>
-            <input className="w-full rounded-md border px-3 py-2" placeholder="Card Number" value={form.cardNumber} onChange={(e) => setForm({ ...form, cardNumber: e.target.value })} inputMode="numeric" />
-            <input className="w-full rounded-md border px-3 py-2" placeholder="Cardholder Name" value={form.cardholder} onChange={(e) => setForm({ ...form, cardholder: e.target.value })} />
-            <div className="grid grid-cols-2 gap-3">
-              <input className="rounded-md border px-3 py-2" placeholder="Expiration (MM/YY)" value={form.exp} onChange={(e) => setForm({ ...form, exp: e.target.value })} />
-              <input className="rounded-md border px-3 py-2" placeholder="CVC" value={form.cvc} onChange={(e) => setForm({ ...form, cvc: e.target.value })} />
+            <div className="rounded-md border px-3 py-2">
+              <CardElement options={{
+                style: { base: { fontSize: "16px", color: "#424770" } },
+              }} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <input className="rounded-md border px-3 py-2" placeholder="Amount" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />

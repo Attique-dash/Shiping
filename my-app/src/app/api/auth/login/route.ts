@@ -6,8 +6,7 @@ import { loginSchema } from "@/lib/validators";
 
 export async function POST(req: Request) {
   try {
-    await dbConnect();
-
+    // Parse body and validate first
     let body: unknown = null;
     try {
       body = await req.json();
@@ -32,7 +31,7 @@ export async function POST(req: Request) {
     const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
     const isSecure = !isLocalhost && proto === "https";
 
-    // First, allow env-based admin login for convenience
+    // Fast path: allow env-based admin login without hitting the DB
     if (adminEmail && adminPassword && email === adminEmail && password === adminPassword) {
       const token = signToken({ role: "admin", userCode: "ADMIN" });
       const res = NextResponse.json({
@@ -49,11 +48,23 @@ export async function POST(req: Request) {
       return res;
     }
 
-    // Otherwise, try DB user
+    // Otherwise, connect to DB for customer/warehouse users
+    await dbConnect();
     const user = await User.findOne({ email });
     if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
-    const ok = await comparePassword(password, user.passwordHash);
+    // Ensure passwordHash exists and is a string to avoid runtime errors
+    if (!user.passwordHash || typeof user.passwordHash !== "string") {
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+    }
+
+    let ok = false;
+    try {
+      ok = await comparePassword(password, user.passwordHash);
+    } catch (e) {
+      console.warn("[login] comparePassword failed", e);
+      ok = false;
+    }
     if (!ok) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
     // Update last login timestamp

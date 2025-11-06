@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,9 +8,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Sidebar */}
         <aside className="hidden w-64 shrink-0 bg-[#0f4d8a] text-white md:block">
           <div className="border-b border-white/10 bg-[#0e447d] px-4 py-4">
-            <div className="mt-1 text-lg font-semibold">Admin Portal</div>
+            <div className="flex items-center gap-3">
+              <Image src="/images/Logo.png" alt="Clean J Shipping" width={36} height={36} className="h-9 w-auto" />
+              <div className="mt-1 text-lg font-semibold">Admin Portal</div>
+            </div>
           </div>
-          <nav className="space-y-1 py-4">
+          <nav className="space-y-1 py-4 px-2">
             <SideLink href="/admin" label="Home" icon="🏠" title="Purpose: Admin dashboard overview | Endpoint: GET /api/admin/reports/summary" />
             <SideLink href="/admin/pos" label="Point of Sale" icon="🧾" title="Purpose: In-person transaction processing | Endpoint: POST /api/admin/pos/transactions" />
             <SideLink href="/admin/packages" label="Packages" icon="📦" title="Purpose: Manage all system packages | Endpoint: GET /api/admin/packages" />
@@ -40,7 +44,7 @@ function SideLink({ href, label, icon, title }: { href: string; label: string; i
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10"
+      className="flex items-center gap-3 rounded-md px-3 py-2 text-sm transition hover:bg-white/15 hover:backdrop-blur"
       title={title}
     >
       <span className="w-5 text-center">{icon}</span>

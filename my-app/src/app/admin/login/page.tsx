@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 
 export default function AdminLoginPage() {
   const params = useSearchParams();
@@ -11,6 +12,7 @@ export default function AdminLoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,14 +68,24 @@ export default function AdminLoginPage() {
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
                     required
                   />
-                  <input
-                    className="w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 outline-none placeholder:text-white/70 focus:ring-2 focus:ring-[#29d3ff]"
-                    type="password"
-                    placeholder="Password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      className="w-full rounded-md border border-white/10 bg-white/10 px-3 py-2 pr-10 outline-none placeholder:text-white/70 focus:ring-2 focus:ring-[#29d3ff]"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      required
+                    />
+                    <button
+                      type="button"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      onClick={() => setShowPassword((s) => !s)}
+                      className="absolute inset-y-0 right-0 flex items-center pr-3 text-white/70 hover:text-white"
+                    >
+                      {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+                    </button>
+                  </div>
                   <button
                     disabled={loading}
                     className="w-full rounded-md bg-[#29d3ff] px-4 py-2 font-semibold text-black hover:bg-[#12c6f7] disabled:opacity-50"

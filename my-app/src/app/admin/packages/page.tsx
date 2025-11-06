@@ -22,14 +22,15 @@ type AdminPackage = {
   hasInvoice: boolean;
 };
 
-export default async function AdminPackagesPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
+export default async function AdminPackagesPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await dbConnect();
 
-  const statusParam = (typeof searchParams?.status === "string" ? searchParams?.status : "").trim();
-  const userCodeParam = (typeof searchParams?.userCode === "string" ? searchParams?.userCode : "").trim();
-  const q = (typeof searchParams?.q === "string" ? searchParams?.q : "").trim();
-  const sortParam = (typeof searchParams?.sort === "string" ? searchParams?.sort : "newest").trim().toLowerCase();
-  const unknownOnly = (typeof searchParams?.unknownOnly === "string" ? searchParams?.unknownOnly : "").toLowerCase() === "true";
+  const params = await searchParams;
+  const statusParam = (typeof params?.status === "string" ? params.status : "").trim();
+  const userCodeParam = (typeof params?.userCode === "string" ? params.userCode : "").trim();
+  const q = (typeof params?.q === "string" ? params.q : "").trim();
+  const sortParam = (typeof params?.sort === "string" ? params.sort : "newest").trim().toLowerCase();
+  const unknownOnly = (typeof params?.unknownOnly === "string" ? params.unknownOnly : "").toLowerCase() === "true";
 
   const query: Record<string, unknown> = {};
   // Map UI "Ready" to internal status "At Warehouse"

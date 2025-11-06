@@ -1,16 +1,20 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 
 export default async function PreAlertsPage() {
-  // Server-side fetch to internal API for fresh data
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ""}/api/admin/pre-alerts`, {
-    cache: "no-store",
-  });
+  // Build absolute base URL for server runtime to avoid "Failed to parse URL" on relative paths
+  const h = headers();
+  const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000";
+  const proto = h.get("x-forwarded-proto") || "http";
+  const base = `${proto}://${host}`;
+
+  const res = await fetch(`${base}/api/admin/pre-alerts`, { cache: "no-store" });
   let data: any[] = [];
   try {
     const json = await res.json();
-    data = Array.isArray(json?.items) ? json.items : Array.isArray(json) ? json : [];
+    data = Array.isArray(json?.pre_alerts) ? json.pre_alerts : Array.isArray(json?.items) ? json.items : Array.isArray(json) ? json : [];
   } catch {}
 
   return (
