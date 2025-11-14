@@ -371,7 +371,7 @@ export default function RegisterPage() {
                         menuPosition="fixed"
                         maxMenuHeight={220}
                         styles={{
-                          control: (base, state) => ({
+                          control: (base: any, state: any) => ({
                             ...base,
                             borderWidth: 2,
                             borderColor: state.isFocused ? "#f58a2e" : "#e5e7eb",
@@ -379,8 +379,8 @@ export default function RegisterPage() {
                             backgroundColor: "#F9FAFB",
                             minHeight: 42,
                           }),
-                          valueContainer: (base) => ({ ...base, paddingLeft: 2 }),
-                          menu: (base) => ({ ...base, zIndex: 50 }),
+                          valueContainer: (base: any) => ({ ...base, paddingLeft: 2 }),
+                          menu: (base: any) => ({ ...base, zIndex: 50 }),
                         }}
                       />
                     </div>

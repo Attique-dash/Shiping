@@ -2,14 +2,31 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { Package, type IPackage } from "@/models/Package";
 import { User } from "@/models/User";
-import { isWarehouseAuthorized } from "@/lib/rbac";
+import { isWarehouseAuthorized, getAuthFromRequest, verifyWarehouseApiKey } from "@/lib/rbac";
 import { addPackageSchema } from "@/lib/validators";
 import { sendNewPackageEmail } from "@/lib/email";
 import { startSession } from "mongoose";
+import { rateLimit } from "@/lib/rateLimit";
 
 export async function POST(req: Request) {
   if (!isWarehouseAuthorized(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  // Per-identifier rate limit: 100 req/min
+  let identifier = "warehouse";
+  try {
+    const { valid, keyInfo } = await verifyWarehouseApiKey(req);
+    if (valid && keyInfo?.keyPrefix) identifier = keyInfo.keyPrefix;
+    else {
+      const payload = getAuthFromRequest(req);
+      const fromCookie = (payload?.uid as string | undefined) || (payload?.email as string | undefined) || (payload?.userCode as string | undefined);
+      if (fromCookie) identifier = `wh_${fromCookie}`;
+    }
+  } catch {}
+  const rl = rateLimit(identifier, { windowMs: 60_000, maxRequests: 100 });
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Rate limit exceeded" }, { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? 60) } });
   }
 
   await dbConnect();

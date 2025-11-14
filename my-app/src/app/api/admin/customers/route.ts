@@ -7,6 +7,7 @@ import { hashPassword } from "@/lib/auth";
 import { getAuthFromRequest } from "@/lib/rbac";
 import { adminCreateCustomerSchema, adminUpdateCustomerSchema, adminDeleteCustomerSchema } from "@/lib/validators";
 import { logAudit } from "@/lib/audit";
+import { hasPermission, type AdminRole } from "@/lib/permissions";
 
 export async function GET(req: Request) {
   await dbConnect();

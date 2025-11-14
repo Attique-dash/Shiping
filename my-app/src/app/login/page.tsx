@@ -231,7 +231,7 @@ export default function LoginPage() {
                     />
                     <span className="group-hover:text-[#0E7893] transition-colors">Remember me</span>
                   </label>
-                  <a href="#" className="text-[#0E7893] hover:text-[#E67919] font-medium transition-colors hover:underline">
+                  <a href="/password-reset" className="text-[#0E7893] hover:text-[#E67919] font-medium transition-colors hover:underline">
                     Forgot Password?
                   </a>
                 </div>

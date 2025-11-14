@@ -53,6 +53,39 @@ export async function POST(req: Request) {
     const user = await User.findOne({ email });
     if (!user) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
 
+    // Allow login but indicate if email is not verified
+    if (!user.emailVerified) {
+      // Generate token with unverified_email flag
+      const token = signToken({ 
+        uid: user._id, 
+        role: user.role, 
+        userCode: user.userCode,
+        emailVerified: false
+      });
+
+      const res = NextResponse.json({
+        message: "Logged in - Please verify your email",
+        user: { 
+          id: user._id, 
+          email: user.email, 
+          role: user.role, 
+          userCode: user.userCode,
+          emailVerified: false
+        },
+        requiresVerification: true
+      });
+      
+      res.cookies.set("auth_token", token, {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: "lax",
+        path: "/",
+        maxAge,
+      });
+      
+      return res;
+    }
+
     // Ensure passwordHash exists and is a string to avoid runtime errors
     if (!user.passwordHash || typeof user.passwordHash !== "string") {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
@@ -75,12 +108,24 @@ export async function POST(req: Request) {
       console.warn("[login] Failed to update lastLogin", e);
     }
 
-    const token = signToken({ uid: user._id, role: user.role, userCode: user.userCode });
+    const token = signToken({ 
+      uid: user._id, 
+      role: user.role, 
+      userCode: user.userCode,
+      emailVerified: true
+    });
 
     // Set cookie on the response to avoid using cookies() after awaited work
     const res = NextResponse.json({
-      message: "Logged in",
-      user: { id: user._id, email: user.email, role: user.role, userCode: user.userCode },
+      message: "Logged in successfully",
+      user: { 
+        id: user._id, 
+        email: user.email, 
+        role: user.role, 
+        userCode: user.userCode,
+        emailVerified: true
+      },
+      requiresVerification: false
     });
     res.cookies.set("auth_token", token, {
       httpOnly: true,

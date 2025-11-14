@@ -4,9 +4,9 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 const slides = [
-  { src: "/airplane.png", alt: "Airplane" },
-  { src: "/ship.png", alt: "Ship" },
-  { src: "/package.jpg", alt: "Package" },
+  { src: "/images/airplane.png", alt: "Airplane" },
+  { src: "/images/ship.png", alt: "Ship" },
+  { src: "/images/package.jpg", alt: "Package" },
 ];
 
 export default function HeroSlider({ className = "" }: { className?: string }) {

@@ -4,6 +4,13 @@ import "./globals.css";
 import { getAuthFromCookies } from "@/lib/auth";
 import TopHeader from "@/components/TopHeader";
 
+// List of paths where TopHeader should be hidden (portal routes)
+const HIDE_HEADER_PATHS = ['/admin', '/customer', '/dashboard', '/warehouse'];
+
+function shouldShowHeader(pathname: string) {
+  return !HIDE_HEADER_PATHS.some(path => pathname && pathname.startsWith(path));
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -26,20 +33,27 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // RootLayout is a Server Component; await async cookies API
+  // Get the current pathname from the URL
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
+  
+  // Check if we should show the header for this route
+  const showHeader = shouldShowHeader(pathname);
+  
+  // Get auth state (but only if needed)
   let auth: AuthShape = null;
   try {
     auth = await getAuthFromCookies();
   } catch {
     auth = null;
   }
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TopHeader loggedIn={Boolean(auth)} />
-        <main>
+        {showHeader && <TopHeader loggedIn={Boolean(auth)} />}
+        <main className={!showHeader ? 'min-h-screen' : ''}>
           {children}
         </main>
       </body>
