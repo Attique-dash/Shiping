@@ -1,104 +1,71 @@
-// app/api/auth/me/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next-server';
 import { getServerSession } from 'next-auth';
-import dbConnect from '@/lib/db';
-import { IUser } from '@/models/User';
-import { authOptions } from '@/lib/auth';
-import { Schema, model, models } from 'mongoose';
-
-// Define the User model if it doesn't exist
-const User = models.User || model<IUser>('User', new Schema({
-  userCode: { type: String, required: true, unique: true },
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  passwordHash: { type: String, required: true, select: false },
-  role: { type: String, enum: ["admin", "customer", "warehouse"], required: true },
-  emailVerified: { type: Boolean, default: false },
-  lastLogin: { type: Date },
-  // Add other fields as needed
-}));
-
-interface UserResponse {
-  id: string;
-  email: string;
-  role: string;
-  userCode: string;
-  firstName?: string;
-  lastName?: string;
-  emailVerified?: boolean;
-  lastLogin?: string;
-}
-
-interface ErrorResponse {
-  error: string;
-  authenticated: boolean;
-  details?: Record<string, unknown>;
-}
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(req: NextRequest) {
   try {
-    // Connect to database first to ensure we can query
-    await dbConnect();
-    
-    // Get session
     const session = await getServerSession(authOptions);
     
-    // If no session, return 401
     if (!session?.user?.email) {
       return NextResponse.json(
-        { 
-          error: 'Not authenticated', 
-          authenticated: false 
-        } as ErrorResponse,
+        { error: 'Not authenticated', authenticated: false },
         { status: 401 }
       );
     }
 
-    try {
-      // Find user without password hash
-      const user = await User.findOne({ email: session.user.email })
-        .select('-passwordHash')
-        .lean();
-      
-      if (!user) {
-        return NextResponse.json(
-          { 
-            error: 'User not found', 
-            authenticated: false 
-          } as ErrorResponse,
-          { status: 404 }
-        );
-      }
-
-      // Format user data for response
-      const userResponse: UserResponse = {
-        id: user._id?.toString() || '',
-        email: user.email,
-        role: user.role,
-        userCode: user.userCode,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        emailVerified: user.emailVerified,
-        lastLogin: user.lastLogin?.toISOString()
-      };
-
-      return NextResponse.json({
-        authenticated: true,
-        user: userResponse,
+    // Determine if admin or user
+    const isAdmin = session.user.role === 'admin';
+    
+    let userData;
+    if (isAdmin) {
+      userData = await prisma.admin.findUnique({
+        where: { email: session.user.email },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          avatar: true,
+          isActive: true,
+          createdAt: true
+        }
       });
-      
-    } catch (dbError) {
-      console.error('Database error in /api/auth/me:', dbError);
+    } else {
+      userData = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          phone: true,
+          address: true,
+          city: true,
+          state: true,
+          zipCode: true,
+          country: true,
+          avatar: true,
+          isActive: true,
+          isVerified: true,
+          createdAt: true
+        }
+      });
+    }
+
+    if (!userData) {
       return NextResponse.json(
-        { 
-          error: 'Error fetching user data', 
-          authenticated: true,
-          details: process.env.NODE_ENV === 'development' ? dbError : undefined
-        } as ErrorResponse,
-        { status: 500 }
+        { error: 'User not found', authenticated: false },
+        { status: 404 }
       );
     }
+
+    return NextResponse.json({
+      authenticated: true,
+      user: {
+        ...userData,
+        role: session.user.role
+      },
+    });
   } catch (error) {
     console.error('Auth me error:', error);
     return NextResponse.json(
@@ -106,8 +73,36 @@ export async function GET(req: NextRequest) {
         error: 'Internal server error', 
         authenticated: false,
         details: process.env.NODE_ENV === 'development' ? error : undefined
-      } as ErrorResponse,
+      },
       { status: 500 }
     );
   }
+}
+
+
+// src/app/api/auth/logout/route.ts
+import { NextResponse } from "next/server";
+
+export async function POST(req: Request) {
+  const response = NextResponse.json({ message: "Logged out successfully" });
+  
+  // Clear NextAuth session cookie
+  response.cookies.set("next-auth.session-token", "", { 
+    httpOnly: true, 
+    expires: new Date(0), 
+    path: "/" 
+  });
+  
+  // Clear custom auth token if you're using one
+  response.cookies.set("auth_token", "", { 
+    httpOnly: true, 
+    expires: new Date(0), 
+    path: "/" 
+  });
+  
+  return response;
+}
+
+export async function GET(req: Request) {
+  return POST(req);
 }

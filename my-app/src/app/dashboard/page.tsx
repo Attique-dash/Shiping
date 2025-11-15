@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/prisma";
 
 type User = { firstName: string; lastName: string; email: string; role: string; userCode: string } | null;
 type Package = {
@@ -33,6 +37,11 @@ type TrackResult = {
 } | null;
 
 export default function DashboardPage() {
+    const session = await getServerSession(authOptions);
+
+  if (!session) {
+    redirect("/login");
+  }
   const params = useSearchParams();
   const [me, setMe] = useState<User>(null);
   const [pkgs, setPkgs] = useState<Package[]>([]);

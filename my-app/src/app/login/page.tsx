@@ -1,7 +1,6 @@
 "use client";
 
-"use client";
-
+import { toast } from "react-hot-toast"; // or your toast library
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
