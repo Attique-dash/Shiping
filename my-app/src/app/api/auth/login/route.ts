@@ -1,34 +1,97 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { comparePassword, signToken } from "@/lib/auth";
-import { loginSchema } from "@/lib/validators";
+import { NextResponse } from 'next/server';
+import { signIn } from 'next-auth/react';
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    let body: unknown = null;
-    try {
-      body = await req.json();
-    } catch {
+    const { email, password } = await request.json();
+
+    if (!email || !password) {
       return NextResponse.json(
-        { error: { message: "Invalid request body" } }, 
+        { error: 'Email and password are required' },
         { status: 400 }
       );
     }
 
-    const parsed = loginSchema.safeParse(body);
-    if (!parsed.success) {
+    const result = await signIn('credentials', {
+      redirect: false,
+      email,
+      password,
+      callbackUrl: '/dashboard',
+    });
+
+    if (result?.error) {
+      return NextResponse.json(
+        { error: 'Invalid credentials' },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json(
+      { success: true, redirect: result?.url || '/dashboard' },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Login error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const body = await req.json() as Partial<LoginRequest>;
+    
+    // Validate request body
+    if (!body.email || !body.password) {
       return NextResponse.json(
         { 
           error: { 
-            message: "Validation failed",
-            details: parsed.error.flatten()
+            message: "Email and password are required",
+            details: { 
+              email: !body.email ? "Email is required" : undefined,
+              password: !body.password ? "Password is required" : undefined
+            }
           } 
-        }, 
+        },
         { status: 400 }
       );
     }
+    
+    const { email, password } = body;
 
-    const { email, password, rememberMe } = parsed.data;
+    try {
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        return NextResponse.json(
+          { 
+            error: { 
+              message: "Invalid email or password",
+              details: { email: "Invalid email or password" }
+            } 
+          },
+          { status: 401 }
+        );
+      }
+
+      return NextResponse.json(
+        { success: true },
+        { status: 200 }
+      );
+    } catch (error) {
+      console.error('Sign in error:', error);
+      return NextResponse.json(
+        { error: { message: 'Authentication failed' } },
+        { status: 500 }
+      );
+    }
+
     const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7;
 
     // Check for admin credentials
@@ -141,3 +204,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}

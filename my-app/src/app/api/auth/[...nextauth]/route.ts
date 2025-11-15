@@ -1,109 +1,76 @@
-import NextAuth, { NextAuthOptions } from 'next-auth';
+// src/app/api/auth/[...nextauth]/route.ts
+import NextAuth from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { dbConnect } from '@/lib/db';
 import { User } from '@/models/User';
 import { comparePassword } from '@/lib/auth';
 
-export const authOptions: NextAuthOptions = {
+const authOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error('Please enter both email and password');
+          return null;
         }
 
         try {
           await dbConnect();
-
-          // Check for admin credentials first
-          const adminEmail = process.env.ADMIN_EMAIL;
-          const adminPassword = process.env.ADMIN_PASSWORD;
-
-          if (adminEmail && adminPassword && 
-              credentials.email === adminEmail && 
-              credentials.password === adminPassword) {
-            
-            return {
-              id: 'admin',
-              email: adminEmail,
-              name: 'Admin',
-              role: 'admin'
-            };
-          }
-
-          // Check regular user from MongoDB
-          const user = await User.findOne({ email: credentials.email });
+          const user = await User.findOne({ email: credentials.email.toLowerCase() });
 
           if (!user) {
-            throw new Error('Invalid email or password');
+            return null;
           }
 
-          // Verify password
           const isPasswordValid = await comparePassword(
-            credentials.password, 
-            user.passwordHash || user.password
+            credentials.password,
+            user.password
           );
 
           if (!isPasswordValid) {
-            throw new Error('Invalid email or password');
+            return null;
           }
-
-          // Update last login
-          user.lastLogin = new Date();
-          await user.save().catch(err => console.warn('Failed to update last login:', err));
 
           return {
             id: user._id.toString(),
             email: user.email,
-            name: user.firstName && user.lastName 
-              ? `${user.firstName} ${user.lastName}` 
-              : user.email,
-            role: user.role || 'customer',
-            isVerified: user.emailVerified || false
+            name: user.name,
+            role: user.role
           };
         } catch (error) {
           console.error('Auth error:', error);
-          throw new Error('Invalid email or password');
+          return null;
         }
-      },
-    }),
+      }
+    })
   ],
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.role = token.role;
+        session.user.id = token.id;
+      }
+      return session;
+    }
+  },
   pages: {
     signIn: '/login',
     error: '/login',
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  callbacks: {
-    async jwt({ token, user, trigger, session }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.isVerified = user.isVerified;
-      }
-      
-      // Update token on session update
-      if (trigger === "update" && session) {
-        token = { ...token, ...session };
-      }
-      
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.user.isVerified = token.isVerified as boolean;
-      }
-      return session;
-    },
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
