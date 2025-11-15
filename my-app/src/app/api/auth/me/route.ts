@@ -1,3 +1,4 @@
+// src/app/api/auth/me/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     await dbConnect();
 
-    // Determine if admin or user
+    // Check if admin
     const isAdmin = session.user.role === 'admin';
     
     let userData;

@@ -1,6 +1,5 @@
 "use client";
 
-import { toast } from "react-hot-toast"; // or your toast library
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
@@ -33,32 +32,41 @@ export default function LoginPage() {
     rememberMe: false 
   });
 
-    const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
 
-  // Handle redirect if already authenticated
-  useEffect(() => {
-    if (status === 'authenticated' && session?.user) {
-      const role = session.user.role as string | undefined;
-      if (role === 'admin') {
-        router.replace('/admin');
-      } else if (role === 'warehouse') {
-        router.replace('/warehouse');
-      } else {
-        const to = redirect && redirect !== '/' ? redirect : '/dashboard';
-        const url = tracking ? `${to}?tracking=${encodeURIComponent(tracking)}` : to;
-        router.replace(url);
-      }
-    }
-  }, [status, session, redirect, tracking, router]);
-
+  // Handle client-side mounting
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Handle redirect if already authenticated - ONLY ONCE when session changes
+  useEffect(() => {
+    if (status === 'loading') return;
+    
+    if (status === 'authenticated' && session?.user) {
+      const role = session.user.role as string | undefined;
+      let targetUrl = '/dashboard';
+      
+      if (role === 'admin') {
+        targetUrl = '/admin';
+      } else if (role === 'warehouse') {
+        targetUrl = '/warehouse';
+      } else if (redirect && redirect !== '/') {
+        targetUrl = redirect;
+      }
+      
+      if (tracking) {
+        targetUrl = `${targetUrl}?tracking=${encodeURIComponent(tracking)}`;
+      }
+      
+      router.replace(targetUrl);
+    }
+  }, [status, session]); // Removed redirect and tracking from dependencies to prevent loops
 
   useEffect(() => {
     if (error) {
@@ -94,37 +102,39 @@ export default function LoginPage() {
     }
     
     try {
-      // Use NextAuth's signIn function
       const result = await signIn('credentials', {
         redirect: false,
         email: form.email.trim(),
         password: form.password,
-        callbackUrl: redirect || '/dashboard',
       });
       
       if (result?.error) {
-        throw new Error(result.error);
+        throw new Error('Invalid email or password');
       }
       
-      // The useSession hook will handle the redirect after successful login
-      // No need to manually redirect here
+      // Session hook will handle the redirect
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
       setShowToast(true);
-      setTimeout(() => setShowToast(false), 5000);
     } finally {
       setLoading(false);
     }
   }
 
-  if (status === 'loading') {
+  // Show loading during initial auth check
+  if (!mounted || status === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
     );
+  }
+
+  // Don't render form if already authenticated
+  if (status === 'authenticated') {
+    return null;
   }
 
   return (
@@ -137,7 +147,7 @@ export default function LoginPage() {
       </div>
 
       {/* Toast notification */}
-      {showToast && (
+      {showToast && error && (
         <div className="fixed left-1/2 top-6 z-[80] -translate-x-1/2 animate-slideDown">
           <div className="rounded-lg bg-red-500 px-6 py-3 text-sm font-semibold text-white shadow-2xl flex items-center gap-2 border border-red-400">
             <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -153,7 +163,6 @@ export default function LoginPage() {
           
           {/* Left: illustrative section with logo */}
           <div className="hidden md:flex relative bg-gradient-to-br from-[#1a9bb8] to-[#0E7893] h-full flex-col justify-between p-10">
-            {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg transform hover:rotate-12 transition-transform duration-300">
                 <FaPlane className="text-[#E67919] text-2xl" />
@@ -164,7 +173,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Illustration */}
             <div className="relative h-64 my-8 w-full">
               <div className="relative w-full h-full">
                 <Image 
@@ -178,19 +186,16 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Bottom text */}
             <div className="space-y-3">
               <h3 className="text-white font-bold text-xl">Welcome to our platform</h3>
               <p className="text-cyan-100 text-sm leading-relaxed">
                 Manage your shipments, track deliveries, and streamline your logistics operations all in one place.
               </p>
-             
             </div>
           </div>
 
           {/* Right: form */}
           <div className="bg-white px-8 py-10 md:px-10 md:py-12">
-            {/* Mobile logo */}
             <div className="flex md:hidden items-center gap-3 justify-center mb-6">
               <div className="w-10 h-10 bg-gradient-to-br from-[#0E7893] to-[#1a9bb8] rounded-xl flex items-center justify-center shadow-lg">
                 <FaPlane className="text-white text-xl" />
@@ -207,7 +212,6 @@ export default function LoginPage() {
               <p className="mt-2 text-sm text-gray-600">Please enter your details to sign in and continue.</p>
               
               <form onSubmit={onSubmit} className="mt-8 space-y-5">
-                {/* Email input */}
                 <div className="group">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
                   <div className="relative">
@@ -233,7 +237,6 @@ export default function LoginPage() {
                   )}
                 </div>
 
-                {/* Password input */}
                 <div className="group">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
                   <div className="relative">
@@ -266,7 +269,6 @@ export default function LoginPage() {
                   )}
                 </div>
 
-                {/* Remember me & Forgot password */}
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-2 text-gray-700 cursor-pointer group">
                     <input
@@ -282,7 +284,6 @@ export default function LoginPage() {
                   </a>
                 </div>
 
-                {/* Submit button */}
                 <button
                   disabled={loading}
                   className="w-full rounded-xl bg-gradient-to-r from-[#E67919] to-[#f58a2e] py-3.5 text-sm font-bold text-white shadow-lg transition-all duration-200 hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100 flex items-center justify-center gap-2"
@@ -306,7 +307,6 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* Register link */}
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
                   Don&apos;t have an account?{" "}
@@ -319,7 +319,6 @@ export default function LoginPage() {
                 </p>
               </div>
 
-              {/* Divider */}
               <div className="mt-8 relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-200"></div>

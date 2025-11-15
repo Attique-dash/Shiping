@@ -1,5 +1,8 @@
+// src/app/api/admin/customers/route.ts
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { dbConnect } from "@/lib/db";
+import { User } from "@/models/User";
+import { Package } from "@/models/Package";
 import { getAuthFromRequest } from "@/lib/rbac";
 import { hashPassword } from "@/lib/auth";
 import { adminCreateCustomerSchema } from "@/lib/validators";
@@ -11,70 +14,78 @@ export async function GET(req: Request) {
   }
 
   try {
+    await dbConnect();
+    
     const url = new URL(req.url);
     const q = (url.searchParams.get("q") || "").trim();
     const status = (url.searchParams.get("status") || "").trim();
     const page = Math.max(parseInt(url.searchParams.get("page") || "1", 10), 1);
     const per_page = Math.min(Math.max(parseInt(url.searchParams.get("per_page") || "20", 10), 1), 100);
 
-    const where: any = {};
+    const filter: any = { role: "customer" };
     
     if (q) {
-      where.OR = [
-        { name: { contains: q, mode: 'insensitive' } },
-        { email: { contains: q, mode: 'insensitive' } },
-        { phone: { contains: q, mode: 'insensitive' } },
+      const regex = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      filter.$or = [
+        { firstName: regex },
+        { lastName: regex },
+        { email: regex },
+        { phone: regex },
+        { userCode: regex }
       ];
     }
 
     if (status === "active" || status === "inactive") {
-      where.isActive = status === "active";
+      filter.accountStatus = status;
     }
 
     const [customers, total_count] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          address: true,
-          city: true,
-          state: true,
-          zipCode: true,
-          country: true,
-          isActive: true,
-          isVerified: true,
-          createdAt: true,
-          packages: {
-            select: { id: true },
-            where: { status: { not: "failed" } }
-          }
-        },
-        orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * per_page,
-        take: per_page
-      }),
-      prisma.user.count({ where })
+      User.find(filter)
+        .select("userCode firstName lastName email phone address accountStatus emailVerified createdAt")
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * per_page)
+        .limit(per_page)
+        .lean(),
+      User.countDocuments(filter)
     ]);
 
+    // Get package counts for each customer
+    const userCodes = customers.map(c => c.userCode);
+    const packageCounts = await Package.aggregate([
+      { 
+        $match: { 
+          userCode: { $in: userCodes },
+          status: { $ne: "Deleted" }
+        }
+      },
+      { 
+        $group: { 
+          _id: "$userCode",
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const packageCountMap = new Map(
+      packageCounts.map(pc => [pc._id, pc.count])
+    );
+
     const result = customers.map(u => ({
-      customer_id: u.id,
-      full_name: u.name,
+      customer_id: u._id.toString(),
+      full_name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email,
       email: u.email,
       phone: u.phone || undefined,
       address: u.address ? {
-        street: u.address,
-        city: u.city || undefined,
-        state: u.state || undefined,
-        zip_code: u.zipCode || undefined,
-        country: u.country || undefined,
+        street: u.address.street,
+        city: u.address.city,
+        state: u.address.state,
+        zip_code: u.address.zipCode,
+        country: u.address.country,
       } : undefined,
-      email_verified: u.isVerified,
-      account_status: u.isActive ? "active" : "inactive",
-      package_count: u.packages.length,
-      member_since: u.createdAt.toISOString(),
+      email_verified: u.emailVerified || false,
+      account_status: u.accountStatus || "active",
+      package_count: packageCountMap.get(u.userCode) || 0,
+      member_since: u.createdAt?.toISOString() || new Date().toISOString(),
     }));
 
     return NextResponse.json({ customers: result, total_count, page, per_page });
@@ -91,6 +102,8 @@ export async function POST(req: Request) {
   }
 
   try {
+    await dbConnect();
+    
     let raw: unknown;
     try {
       raw = await req.json();
@@ -105,32 +118,44 @@ export async function POST(req: Request) {
 
     const { full_name, email, password, phone, address } = parsed.data;
 
-    const existing = await prisma.user.findUnique({ where: { email } });
+    const existing = await User.findOne({ email: email.toLowerCase() });
     if (existing) {
       return NextResponse.json({ error: "Email already exists" }, { status: 409 });
     }
 
     const passwordHash = await hashPassword(password);
     
-    const created = await prisma.user.create({
-      data: {
-        email,
-        password: passwordHash,
-        name: full_name,
-        phone,
-        address: address?.street,
-        city: address?.city,
-        state: address?.state,
-        zipCode: address?.zip_code,
-        country: address?.country,
-        isActive: true,
-        isVerified: false
-      }
+    // Split full name
+    const nameParts = full_name.trim().split(/\s+/);
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    // Generate unique user code
+    const userCode = `C${Date.now()}`;
+    
+    const created = await User.create({
+      userCode,
+      email: email.toLowerCase(),
+      passwordHash,
+      firstName,
+      lastName,
+      phone,
+      address: address ? {
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        zipCode: address.zip_code,
+        country: address.country,
+      } : undefined,
+      role: "customer",
+      accountStatus: "active",
+      emailVerified: false
     });
 
     return NextResponse.json({ 
       ok: true, 
-      id: created.id 
+      id: created._id.toString(),
+      user_code: created.userCode
     });
   } catch (error) {
     console.error("Error creating customer:", error);
@@ -145,6 +170,8 @@ export async function PUT(req: Request) {
   }
 
   try {
+    await dbConnect();
+    
     let raw: unknown;
     try {
       raw = await req.json();
@@ -154,31 +181,40 @@ export async function PUT(req: Request) {
 
     const { id, password, full_name, address, ...rest } = raw as any;
     
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+    
     const updateData: any = { ...rest };
     
     if (full_name) {
-      updateData.name = full_name;
+      const nameParts = full_name.trim().split(/\s+/);
+      updateData.firstName = nameParts[0] || '';
+      updateData.lastName = nameParts.slice(1).join(' ') || '';
     }
     
     if (address) {
-      updateData.address = address.street;
-      updateData.city = address.city;
-      updateData.state = address.state;
-      updateData.zipCode = address.zip_code;
-      updateData.country = address.country;
+      updateData.address = {
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        zipCode: address.zip_code,
+        country: address.country,
+      };
     }
     
     if (password) {
-      updateData.password = await hashPassword(password);
+      updateData.passwordHash = await hashPassword(password);
     }
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData
-    });
+    const updated = await User.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      { new: true }
+    );
 
     if (!updated) {
-      return NextResponse.json({ error: "Not found" }, { status: 404 });
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 
     return NextResponse.json({ ok: true });
@@ -195,6 +231,8 @@ export async function DELETE(req: Request) {
   }
 
   try {
+    await dbConnect();
+    
     let raw: unknown;
     try {
       raw = await req.json();
@@ -204,9 +242,15 @@ export async function DELETE(req: Request) {
 
     const { id } = raw as { id: string };
 
-    await prisma.user.delete({
-      where: { id }
-    });
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
+    }
+
+    const deleted = await User.findByIdAndDelete(id);
+
+    if (!deleted) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {

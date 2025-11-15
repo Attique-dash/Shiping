@@ -1,11 +1,12 @@
 // src/app/api/auth/[...nextauth]/route.ts
-import NextAuth from 'next-auth';
+import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { dbConnect } from '@/lib/db';
 import { User } from '@/models/User';
 import { comparePassword } from '@/lib/auth';
 
-const authOptions = {
+// Export authOptions so it can be used in other files
+export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: 'Credentials',
@@ -28,7 +29,7 @@ const authOptions = {
 
           const isPasswordValid = await comparePassword(
             credentials.password,
-            user.password
+            user.passwordHash || user.password
           );
 
           if (!isPasswordValid) {
@@ -38,7 +39,7 @@ const authOptions = {
           return {
             id: user._id.toString(),
             email: user.email,
-            name: user.name,
+            name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
             role: user.role
           };
         } catch (error) {
@@ -58,8 +59,8 @@ const authOptions = {
     },
     async session({ session, token }) {
       if (session.user) {
-        session.user.role = token.role;
-        session.user.id = token.id;
+        session.user.role = token.role as string;
+        session.user.id = token.id as string;
       }
       return session;
     }
@@ -70,7 +71,7 @@ const authOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',

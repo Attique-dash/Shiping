@@ -1,26 +1,35 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  // Use the new configuration key instead of experimental
+  serverExternalPackages: ['mongoose', 'mongodb', 'bcryptjs'],
+  
+  env: {
+    MONGODB_URI: process.env.MONGODB_URI,
+  },
+  
   images: {
-    domains: ['localhost'],
+    // Use remotePatterns instead of domains
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+    ],
   },
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Set canvas to false for client-side rendering
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        canvas: false,
-        fs: false,
-        path: false,
-        os: false,
-      };
-    }
-    return config;
+  
+  // Disable type checking during build (optional, for faster builds)
+  typescript: {
+    ignoreBuildErrors: false,
   },
-  // This tells Next.js to ignore these modules during server-side rendering
-  experimental: {
-    serverComponentsExternalPackages: ['canvas', 'pdfjs-dist'],
+  
+  // Disable ESLint during build (optional, for faster builds)
+  eslint: {
+    ignoreDuringBuilds: false,
   },
-};
+}
 
 module.exports = nextConfig;

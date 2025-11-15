@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { LogoutButton } from "@/components/LogoutButton";
 
 import { 
   PackageIcon, 
@@ -40,37 +42,38 @@ interface DashboardStats {
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [data, setData] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    checkAuthAndFetchData();
-  }, []);
-
-  const checkAuthAndFetchData = async () => {
-    try {
-      // Check authentication
-      const authResponse = await fetch('/api/auth/me');
-      if (!authResponse.ok) {
-        router.push('/login');
-        return;
-      }
-
-      const authData = await authResponse.json();
-      if (!authData.authenticated || authData.user?.role !== 'admin') {
-        router.push('/login');
-        return;
-      }
-
-      // Fetch dashboard data
-      await fetchData();
-    } catch (error) {
-      console.error('Error checking auth:', error);
-      setError('Failed to load dashboard');
-      setLoading(false);
+    // Wait for session to load
+    if (status === 'loading') return;
+    
+    // Check authentication and role
+    if (status === 'unauthenticated') {
+      console.log('Not authenticated, redirecting to login');
+      router.replace('/login?redirect=/admin');
+      return;
     }
-  };
+
+    if (!session?.user) {
+      console.log('No user session, redirecting to login');
+      router.replace('/login?redirect=/admin');
+      return;
+    }
+
+    if (session.user.role !== 'admin') {
+      console.log('Not admin user, redirecting to login');
+      router.replace('/login');
+      return;
+    }
+
+    // User is authenticated and is admin, fetch data
+    console.log('Admin authenticated, fetching data');
+    fetchData();
+  }, [status, session]);
 
   const fetchData = async () => {
     try {
@@ -86,7 +89,8 @@ export default function AdminDashboard() {
     }
   };
 
-  if (loading) {
+  // Show loading while checking authentication
+  if (status === 'loading' || loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-center">
@@ -95,6 +99,11 @@ export default function AdminDashboard() {
         </div>
       </div>
     );
+  }
+
+  // Don't render anything if redirecting
+  if (status === 'unauthenticated' || session?.user?.role !== 'admin') {
+    return null;
   }
 
   if (error || !data) {
@@ -155,7 +164,7 @@ export default function AdminDashboard() {
             />
           </div>
 
-          {/* Hero Banner with overlay */}
+          {/* Hero Banner */}
           <section className="group relative overflow-hidden rounded-2xl border border-gray-200 shadow-xl transition-all hover:shadow-2xl w-full">
             <div className="relative h-40 w-full sm:h-48 md:h-56">
               <div className="absolute inset-0 bg-gradient-to-r from-[#0f4d8a]/95 via-[#0e7893]/90 to-[#0f4d8a]/95" />
