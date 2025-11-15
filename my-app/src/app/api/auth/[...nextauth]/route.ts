@@ -1,6 +1,7 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { prisma } from '@/lib/prisma';
+import { dbConnect } from '@/lib/db';
+import { User } from '@/models/User';
 import { comparePassword } from '@/lib/auth';
 
 export const authOptions: NextAuthOptions = {
@@ -17,6 +18,8 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
+          await dbConnect();
+
           // Check for admin credentials first
           const adminEmail = process.env.ADMIN_EMAIL;
           const adminPassword = process.env.ADMIN_PASSWORD;
@@ -25,23 +28,16 @@ export const authOptions: NextAuthOptions = {
               credentials.email === adminEmail && 
               credentials.password === adminPassword) {
             
-            // Try to find admin in database
-            const admin = await prisma.admin.findUnique({ 
-              where: { email: adminEmail } 
-            });
-
             return {
-              id: admin?.id || 'admin',
+              id: 'admin',
               email: adminEmail,
-              name: admin?.name || 'Admin',
+              name: 'Admin',
               role: 'admin'
             };
           }
 
-          // Check regular user
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email }
-          });
+          // Check regular user from MongoDB
+          const user = await User.findOne({ email: credentials.email });
 
           if (!user) {
             throw new Error('Invalid email or password');
@@ -50,7 +46,7 @@ export const authOptions: NextAuthOptions = {
           // Verify password
           const isPasswordValid = await comparePassword(
             credentials.password, 
-            user.password
+            user.passwordHash || user.password
           );
 
           if (!isPasswordValid) {
@@ -58,17 +54,17 @@ export const authOptions: NextAuthOptions = {
           }
 
           // Update last login
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { updatedAt: new Date() }
-          }).catch(err => console.warn('Failed to update last login:', err));
+          user.lastLogin = new Date();
+          await user.save().catch(err => console.warn('Failed to update last login:', err));
 
           return {
-            id: user.id,
+            id: user._id.toString(),
             email: user.email,
-            name: user.name,
-            role: 'customer',
-            isVerified: user.isVerified
+            name: user.firstName && user.lastName 
+              ? `${user.firstName} ${user.lastName}` 
+              : user.email,
+            role: user.role || 'customer',
+            isVerified: user.emailVerified || false
           };
         } catch (error) {
           console.error('Auth error:', error);

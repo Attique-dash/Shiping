@@ -37,10 +37,30 @@ type TrackResult = {
 } | null;
 
 export default function DashboardPage() {
-    const session = await getServerSession(authOptions);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (!session) {
-    redirect("/login");
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const session = await getServerSession(authOptions);
+        if (!session) {
+          redirect("/login");
+        }
+        setSession(session);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+        redirect("/login");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  if (loading) {
+    return <div>Loading...</div>; // Or your loading spinner
   }
   const params = useSearchParams();
   const [me, setMe] = useState<User>(null);

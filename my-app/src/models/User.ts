@@ -1,28 +1,69 @@
-// src/models/User.ts
-import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
+import { Schema, model, models } from "mongoose";
 
-const userSchema = new mongoose.Schema(
+export type UserRole = "admin" | "customer" | "warehouse";
+
+export interface IUser {
+  _id?: string;
+  userCode: string;
+  firstName?: string;
+  lastName?: string;
+  email: string;
+  passwordHash: string;
+  password?: string; // alias for passwordHash
+  phone?: string;
+  role: UserRole;
+  branch?: string;
+  serviceTypeIDs?: string[];
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  accountStatus?: "active" | "inactive";
+  emailVerified?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+  lastLogin?: Date;
+}
+
+const UserSchema = new Schema<IUser>(
   {
-    email: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
-    password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'user'], default: 'user' },
+    userCode: { type: String, required: true, unique: true, index: true },
+    firstName: { type: String },
+    lastName: { type: String },
+    email: { type: String, required: true, unique: true, index: true },
+    passwordHash: { type: String, required: true },
+    phone: { type: String },
+    role: { type: String, enum: ["admin", "customer", "warehouse"], default: "customer", index: true },
+    branch: { type: String },
+    serviceTypeIDs: [{ type: String }],
+    address: {
+      street: String,
+      city: String,
+      state: String,
+      zipCode: String,
+      country: String,
+    },
+    accountStatus: { type: String, enum: ["active", "inactive"], default: "active" },
+    emailVerified: { type: Boolean, default: false },
+    lastLogin: { type: Date },
   },
   { timestamps: true }
 );
 
-// Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
+// Virtual field for backward compatibility
+UserSchema.virtual("password")
+  .get(function() {
+    return this.passwordHash;
+  })
+  .set(function(value) {
+    this.passwordHash = value;
+  });
 
-// Method to compare password
-userSchema.methods.comparePassword = async function (candidatePassword: string) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
+// Ensure virtuals are included in JSON
+UserSchema.set("toJSON", { virtuals: true });
+UserSchema.set("toObject", { virtuals: true });
 
-export default mongoose.models.User || mongoose.model('User', userSchema);
+export const User = models.User || model<IUser>("User", UserSchema);

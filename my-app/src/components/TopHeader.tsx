@@ -16,7 +16,7 @@ const FiX = dynamic(() => import("react-icons/fi").then(m => m.FiX), { ssr: fals
 const MdEmail = dynamic(() => import("react-icons/md").then(m => m.MdEmail), { ssr: false });
 
 export default function TopHeader() {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const loggedIn = status === 'authenticated';
   const pathname = usePathname();
   const router = useRouter();
@@ -25,13 +25,10 @@ export default function TopHeader() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
+  
   useEffect(() => {
     const onScroll = () => {
       setShowTopBar(window.scrollY < 50);
-    };
-    const handleLogout = async () => {
-      await signOut({ redirect: false });
-      router.push('/login');
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -73,7 +70,8 @@ export default function TopHeader() {
     router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
-  if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
+  // Hide header on login, register, and home pages
+  if (pathname === '/' || pathname.startsWith("/login") || pathname.startsWith("/register")) {
     return null;
   }
 
@@ -124,30 +122,29 @@ export default function TopHeader() {
             <Image src="/images/Logo.png" alt="Clean Shipping" width={150} height={60} priority className="w-[180px] md:w-[150px] h-auto" />
           </Link>
 
-          {!loggedIn ? (
-            <nav className="hidden items-center gap-8 md:flex">
-              {[
-                { href: "/", label: "Home" },
-                { href: "/about-us", label: "About Us" },
-                { href: "/services", label: "Services" },
-                { href: "/rates", label: "Rates" },
-                { href: "/customs-policy", label: "Customs Policy" },
-                { href: "/contact", label: "Contact Us" },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`text-[15px] font-semibold tracking-wide hover:text-[#E67919] ${
-                    pathname === item.href ? "text-[#E67919]" : "text-gray-800"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          ): <>
-          <h1 className="text-[#E67919] text-2xl font-bold text-center">Admin Portal</h1>
-          </>}
+          <nav className="hidden items-center gap-8 md:flex">
+            {[
+              { href: "/", label: "Home" },
+              { href: "/about-us", label: "About Us" },
+              { href: "/services", label: "Services" },
+              { href: "/rates", label: "Rates" },
+              { href: "/customs-policy", label: "Customs Policy" },
+              { href: "/contact", label: "Contact Us" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`text-[15px] font-semibold tracking-wide hover:text-[#E67919] ${
+                  pathname === item.href ? "text-[#E67919]" : "text-gray-800"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+          {loggedIn && pathname.startsWith("/admin") && (
+            <h1 className="text-[#E67919] text-2xl font-bold text-center">Admin Portal</h1>
+          )}
 
           <div className="flex items-center gap-4">
             {!loggedIn ? (
@@ -216,29 +213,27 @@ export default function TopHeader() {
             </button>
           </div>
 
-          {!loggedIn && (
-            <nav className="flex flex-col gap-1 px-4 py-3">
-              {[
-                { href: "/", label: "Home" },
-                { href: "/about-us", label: "About Us" },
-                { href: "/services", label: "Services" },
-                { href: "/rates", label: "Rates" },
-                { href: "/customs-policy", label: "Customs Policy" },
-                { href: "/contact", label: "Contact Us" },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsDrawerOpen(false)}
-                  className={`block rounded-md px-3 py-3 text-[15px] font-semibold tracking-wide hover:bg-gray-50 ${
-                    pathname === item.href ? "text-[#E67919]" : "text-gray-800"
-                  }`}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-          )}
+          <nav className="flex flex-col gap-1 px-4 py-3">
+            {[
+              { href: "/", label: "Home" },
+              { href: "/about-us", label: "About Us" },
+              { href: "/services", label: "Services" },
+              { href: "/rates", label: "Rates" },
+              { href: "/customs-policy", label: "Customs Policy" },
+              { href: "/contact", label: "Contact Us" },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setIsDrawerOpen(false)}
+                className={`block rounded-md px-3 py-3 text-[15px] font-semibold tracking-wide hover:bg-gray-50 ${
+                  pathname === item.href ? "text-[#E67919]" : "text-gray-800"
+                }`}
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
 
           {/* Contact info + socials inside drawer for small screens */}
           <div className="mt-auto border-t px-4 py-4 space-y-3">

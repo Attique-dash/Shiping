@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next-server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
-import { prisma } from '@/lib/prisma';
+import { dbConnect } from '@/lib/db';
+import { User } from '@/models/User';
 
 export async function GET(req: NextRequest) {
   try {
@@ -14,57 +15,55 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    await dbConnect();
+
     // Determine if admin or user
     const isAdmin = session.user.role === 'admin';
     
     let userData;
     if (isAdmin) {
-      userData = await prisma.admin.findUnique({
-        where: { email: session.user.email },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          avatar: true,
-          isActive: true,
-          createdAt: true
-        }
-      });
+      // For admin, return basic info
+      userData = {
+        id: session.user.id || 'admin',
+        email: session.user.email,
+        name: session.user.name || 'Admin',
+        role: 'admin',
+        isActive: true,
+        createdAt: new Date(),
+      };
     } else {
-      userData = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          phone: true,
-          address: true,
-          city: true,
-          state: true,
-          zipCode: true,
-          country: true,
-          avatar: true,
-          isActive: true,
-          isVerified: true,
-          createdAt: true
-        }
-      });
-    }
+      // For regular users, fetch from database
+      const user = await User.findOne({ email: session.user.email });
+      
+      if (!user) {
+        return NextResponse.json(
+          { error: 'User not found', authenticated: false },
+          { status: 404 }
+        );
+      }
 
-    if (!userData) {
-      return NextResponse.json(
-        { error: 'User not found', authenticated: false },
-        { status: 404 }
-      );
+      userData = {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.firstName && user.lastName 
+          ? `${user.firstName} ${user.lastName}` 
+          : user.email,
+        phone: user.phone,
+        address: user.address?.street,
+        city: user.address?.city,
+        state: user.address?.state,
+        zipCode: user.address?.zipCode,
+        country: user.address?.country,
+        isActive: user.accountStatus === 'active',
+        isVerified: user.emailVerified || false,
+        createdAt: user.createdAt,
+        role: user.role,
+      };
     }
 
     return NextResponse.json({
       authenticated: true,
-      user: {
-        ...userData,
-        role: session.user.role
-      },
+      user: userData,
     });
   } catch (error) {
     console.error('Auth me error:', error);
@@ -72,37 +71,9 @@ export async function GET(req: NextRequest) {
       { 
         error: 'Internal server error', 
         authenticated: false,
-        details: process.env.NODE_ENV === 'development' ? error : undefined
+        details: process.env.NODE_ENV === 'development' ? String(error) : undefined
       },
       { status: 500 }
     );
   }
-}
-
-
-// src/app/api/auth/logout/route.ts
-import { NextResponse } from "next/server";
-
-export async function POST(req: Request) {
-  const response = NextResponse.json({ message: "Logged out successfully" });
-  
-  // Clear NextAuth session cookie
-  response.cookies.set("next-auth.session-token", "", { 
-    httpOnly: true, 
-    expires: new Date(0), 
-    path: "/" 
-  });
-  
-  // Clear custom auth token if you're using one
-  response.cookies.set("auth_token", "", { 
-    httpOnly: true, 
-    expires: new Date(0), 
-    path: "/" 
-  });
-  
-  return response;
-}
-
-export async function GET(req: Request) {
-  return POST(req);
 }
