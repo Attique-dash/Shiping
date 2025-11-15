@@ -1,38 +1,57 @@
 "use client";
 
-import Link from "next/link";
-import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { signIn, useSession } from "next-auth/react";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaPlane } from "react-icons/fa";
+import Link from "next/link";
+
+interface FormData {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+}
+
+interface FormErrors {
+  email?: string;
+  password?: string;
+}
 
 export default function LoginPage() {
-  const params = useSearchParams();
-  const redirect = params.get("redirect") || "/";
-  const tracking = params.get("tracking") || "";
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
+  
+  const redirect = searchParams.get("redirect") || "/";
+  const tracking = searchParams.get("tracking") || "";
 
-  const [form, setForm] = useState({ email: "", password: "", rememberMe: false });
+  const [form, setForm] = useState<FormData>({ 
+    email: "", 
+    password: "", 
+    rememberMe: false 
+  });
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
+  // Handle redirect if already authenticated
   useEffect(() => {
-    setMounted(true);
-    fetch("/api/auth/me", { cache: "no-store", credentials: "include" })
-      .then((r) => r.json())
-      .then((d) => {
-        if (d?.user) {
-          const role = d.user.role as string | undefined;
-          if (role === "admin") window.location.replace("/admin");
-          else if (role === "warehouse") window.location.replace("/warehouse");
-          else window.location.replace("/dashboard");
-        }
-      })
-      .catch(() => {});
-  }, []);
+    if (status === 'authenticated' && session?.user) {
+      const role = session.user.role as string | undefined;
+      if (role === 'admin') {
+        router.replace('/admin');
+      } else if (role === 'warehouse') {
+        router.replace('/warehouse');
+      } else {
+        const to = redirect && redirect !== '/' ? redirect : '/dashboard';
+        const url = tracking ? `${to}?tracking=${encodeURIComponent(tracking)}` : to;
+        router.replace(url);
+      }
+    }
+  }, [status, session, redirect, tracking, router]);
 
   useEffect(() => {
     if (error) {
@@ -46,46 +65,63 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const next: { email?: string; password?: string } = {};
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = "Enter a valid email";
-    if (!form.password) next.password = "Password is required";
-    setErrors(next);
-    if (Object.keys(next).length) {
+    
+    // Form validation
+    const next: FormErrors = {};
+    if (!form.email.trim()) {
+      next.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      next.email = "Please enter a valid email";
+    }
+    
+    if (!form.password) {
+      next.password = "Password is required";
+    } else if (form.password.length < 6) {
+      next.password = "Password must be at least 6 characters";
+    }
+    
+    if (Object.keys(next).length > 0) {
+      setErrors(next);
       setLoading(false);
       return;
     }
+    
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-        credentials: "include",
+      // Use NextAuth's signIn function
+      const result = await signIn('credentials', {
+        redirect: false,
+        email: form.email.trim(),
+        password: form.password,
+        callbackUrl: redirect || '/dashboard',
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.error || data?.message || "Login failed");
-
-      const role = data?.user?.role as string | undefined;
-      if (role === "admin") {
-        window.location.assign("/admin");
-      } else if (role === "warehouse") {
-        window.location.assign("/warehouse");
-      } else {
-        const to = redirect && redirect !== "/" ? redirect : "/dashboard";
-        const url = tracking ? `${to}?tracking=${encodeURIComponent(tracking)}` : to;
-        window.location.assign(url);
+      
+      if (result?.error) {
+        throw new Error(result.error);
       }
+      
+      // The useSession hook will handle the redirect after successful login
+      // No need to manually redirect here
+      
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed";
-      setError(msg);
+      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      setError(errorMessage);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 5000);
     } finally {
       setLoading(false);
     }
   }
 
+  if (status === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="min-h-screen bg-gradient-to-br from-[#0E7893] via-[#1a9bb8] to-[#E67919] flex items-center justify-center relative overflow-hidden"
-    >
+    <div className="min-h-screen bg-gradient-to-br from-[#0E7893] via-[#1a9bb8] to-[#E67919] flex items-center justify-center relative overflow-hidden">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-72 h-72 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
@@ -155,7 +191,7 @@ export default function LoginPage() {
             </div>
 
             <div className="mx-auto w-full max-w-sm">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-[#0E7893] bg-gradient-to-r from-[#0E7893] to-[#1a9bb8] bg-clip-text text-transparent">
+              <h1 className="text-3xl md:text-4xl font-extrabold bg-gradient-to-r from-[#0E7893] to-[#1a9bb8] bg-clip-text text-transparent">
                 Welcome Back!
               </h1>
               <p className="mt-2 text-sm text-gray-600">Please enter your details to sign in and continue.</p>

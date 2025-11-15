@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import dynamic from "next/dynamic";
 
 const FaFacebookF = dynamic(() => import("react-icons/fa").then(m => m.FaFacebookF), { ssr: false });
@@ -14,7 +15,9 @@ const FiMenu = dynamic(() => import("react-icons/fi").then(m => m.FiMenu), { ssr
 const FiX = dynamic(() => import("react-icons/fi").then(m => m.FiX), { ssr: false });
 const MdEmail = dynamic(() => import("react-icons/md").then(m => m.MdEmail), { ssr: false });
 
-export default function TopHeader({ loggedIn }: { loggedIn: boolean }) {
+export default function TopHeader() {
+  const { data: session, status } = useSession();
+  const loggedIn = status === 'authenticated';
   const pathname = usePathname();
   const router = useRouter();
   const [showTopBar, setShowTopBar] = useState(true);
@@ -25,6 +28,10 @@ export default function TopHeader({ loggedIn }: { loggedIn: boolean }) {
   useEffect(() => {
     const onScroll = () => {
       setShowTopBar(window.scrollY < 50);
+    };
+    const handleLogout = async () => {
+      await signOut({ redirect: false });
+      router.push('/login');
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
