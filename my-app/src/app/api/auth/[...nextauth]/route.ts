@@ -1,68 +1,70 @@
-import NextAuth, { NextAuthOptions } from "next-auth";
-import CredentialsProvider from "next-auth/providers/credentials";
+// src/app/api/auth/[...nextauth]/route.ts
+import NextAuth from 'next-auth';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import dbConnect from '@/lib/db';
+import User from '@/models/User';
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   providers: [
     CredentialsProvider({
-      name: "Credentials",
+      name: 'Credentials',
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
+        password: { label: "Password", type: "password" }
       },
       async authorize(credentials) {
-        // Replace this with your actual authentication logic
-        // This is just a placeholder example
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error('Please enter both email and password');
         }
 
-        // Example: Check against your database
-        // const user = await prisma.user.findUnique({
-        //   where: { email: credentials.email }
-        // });
-
-        // For demo purposes only - REMOVE IN PRODUCTION
-        if (
-          credentials.email === "demo@example.com" &&
-          credentials.password === "password123"
-        ) {
-          return {
-            id: "1",
-            email: credentials.email,
-            name: "Demo User",
-          };
+        await dbConnect();
+        
+        const user = await User.findOne({ email: credentials.email });
+        if (!user) {
+          throw new Error('Invalid email or password');
         }
 
-        // If authentication fails
-        return null;
+        const isPasswordValid = await user.comparePassword(credentials.password);
+        if (!isPasswordValid) {
+          throw new Error('Invalid email or password');
+        }
+
+        return {
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          role: user.role
+        };
       },
     }),
   ],
   pages: {
-    signIn: "/login",
-    signOut: "/login",
-    error: "/login",
+    signIn: '/login',
+    error: '/login',
   },
   session: {
-    strategy: "jwt",
+    strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
+        session.user.role = token.role as string;
       }
       return session;
     },
   },
+  secret: process.env.NEXTAUTH_SECRET,
+  debug: process.env.NODE_ENV === 'development',
 };
 
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };

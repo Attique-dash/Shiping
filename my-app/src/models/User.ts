@@ -1,65 +1,28 @@
-import { Schema, model, models } from "mongoose";
+// src/models/User.ts
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
-export type UserRole = "admin" | "customer" | "warehouse";
-
-export interface IUser {
-  _id?: string;
-  userCode: string; // external code used by warehouse
-  firstName: string;
-  lastName: string;
-  email: string;
-  passwordHash: string;
-  branch?: string;
-  serviceTypeIDs?: string[];
-  phone?: string;
-  address?: {
-    street?: string;
-    city?: string;
-    state?: string;
-    zipCode?: string;
-    country?: string;
-  };
-  role: UserRole;
-  accountStatus?: "active" | "inactive";
-  lastLogin?: Date;
-  emailVerified?: boolean;
-  accountType?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-const UserSchema = new Schema<IUser>(
+const userSchema = new mongoose.Schema(
   {
-    userCode: { type: String, required: true, unique: true, index: true },
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    email: { type: String, required: true, unique: true, index: true },
-    passwordHash: { type: String, required: true },
-    branch: { type: String },
-    serviceTypeIDs: [{ type: String }],
-    phone: { type: String },
-    address: {
-      type: new Schema(
-        {
-          street: { type: String },
-          city: { type: String },
-          state: { type: String },
-          zipCode: { type: String },
-          country: { type: String },
-        },
-        { _id: false }
-      ),
-    },
-    accountStatus: { type: String, enum: ["active", "inactive"], default: "active" },
-    lastLogin: { type: Date },
-    emailVerified: { type: Boolean, default: false },
-    accountType: { type: String },
-    role: { type: String, enum: ["admin", "customer", "warehouse"], default: "customer" },
+    email: { type: String, required: true, unique: true },
+    name: { type: String, required: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ['admin', 'user'], default: 'user' },
   },
   { timestamps: true }
 );
 
-const User = models.User || model<IUser>("User", UserSchema);
+// Hash password before saving
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
 
-export default User;
+// Method to compare password
+userSchema.methods.comparePassword = async function (candidatePassword: string) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
+export default mongoose.models.User || mongoose.model('User', userSchema);
