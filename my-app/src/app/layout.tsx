@@ -17,8 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Shipping Dashboard",
-  description: "Shipping and logistics management system",
-};
+  description: "Shipping and logistics management system",};
 
 export default function RootLayout({
   children,

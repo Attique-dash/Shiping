@@ -1,10 +1,13 @@
 "use client";
 
+"use client";
+
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, useSession } from "next-auth/react";
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaPlane } from "react-icons/fa";
 import Link from "next/link";
+import Image from "next/image";
 
 interface FormData {
   email: string;
@@ -30,7 +33,8 @@ export default function LoginPage() {
     password: "", 
     rememberMe: false 
   });
-  
+
+    const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
@@ -52,6 +56,10 @@ export default function LoginPage() {
       }
     }
   }, [status, session, redirect, tracking, router]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (error) {
@@ -158,14 +166,17 @@ export default function LoginPage() {
             </div>
 
             {/* Illustration */}
-            <div className="relative h-64 my-8">
-              <Image 
-                src="/images/Logo.png" 
-                alt="Authentication" 
-                fill 
-                priority 
-                className="object-contain drop-shadow-2xl"
-              />
+            <div className="relative h-64 my-8 w-full">
+              <div className="relative w-full h-full">
+                <Image 
+                  src="/images/Logo.png" 
+                  alt="Authentication" 
+                  fill
+                  priority 
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  className="object-contain drop-shadow-2xl"
+                />
+              </div>
             </div>
 
             {/* Bottom text */}
