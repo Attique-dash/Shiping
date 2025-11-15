@@ -1,10 +1,14 @@
-import { dbConnect } from "@/lib/db";
 import { Package } from "@/models/Package";
 import { PreAlert } from "@/models/PreAlert";
 import { Payment } from "@/models/Payment";
 import { User } from "@/models/User";
 import Link from "next/link";
 import Image from "next/image";
+import { getServerSession } from 'next-auth';
+import { redirect } from 'next/navigation';
+import dbConnect from '@/lib/db';
+import { authOptions } from '@/lib/auth';
+import Order from '@/models/Order';
 import { 
   PackageIcon, 
   TrendingUp, 
@@ -22,6 +26,18 @@ import {
 } from "lucide-react";
 
 export default async function AdminDashboard() {
+  const session = await getServerSession(authOptions);
+
+ if (!session || !session.user) {
+    redirect('/login');
+  }
+
+  // Check if user is admin
+  if (session.user.role !== 'admin') {
+    redirect('/'); // Redirect to home if not admin
+  }
+
+  // Now connect to database
   await dbConnect();
 
   const startOfToday = new Date();
