@@ -20,8 +20,8 @@ export async function getAuthFromRequest(req: Request): Promise<AuthPayload | nu
       if (payload) return payload as AuthPayload;
     }
 
-    // Then try to get token from cookie
-    const cookieStore = cookies();
+    // Then try to get token from cookie - MUST USE AWAIT
+    const cookieStore = await cookies(); // <-- ADD AWAIT HERE
     const token = cookieStore.get("auth_token")?.value;
     if (token) {
       const payload = verifyToken(token);

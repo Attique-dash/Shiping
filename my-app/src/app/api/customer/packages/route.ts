@@ -1,73 +1,72 @@
-import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { getAuthFromRequest } from "@/lib/rbac";
+// src/app/api/customer/packages/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthFromRequest, requireRole } from '@/lib/rbac';
+import { PrismaClient } from '@prisma/client';
 
-function toUiStatus(status: string): "in_transit" | "ready_for_pickup" | "delivered" | "pending" {
-  switch (status) {
-    case "in_transit":
-      return "in_transit";
-    case "delivered":
-      return "delivered";
-    case "out_for_delivery":
-      return "ready_for_pickup";
-    case "pending":
-    case "picked_up":
-    default:
-      return "pending";
-  }
-}
+const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const payload = await getAuthFromRequest(req);
-    if (!payload || payload.role !== "customer") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // IMPORTANT: Use await since getAuthFromRequest is now async
+    const auth = await getAuthFromRequest(req);
+    
+    // Check if user is authorized
+    const authError = requireRole(auth, 'customer');
+    if (authError) {
+      return authError;
     }
 
-    // Get user's packages
+    // TypeScript now knows auth is not null
+    const userId = auth!.id || auth!._id || auth!.uid;
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'User ID not found' },
+        { status: 400 }
+      );
+    }
+
+    // Fetch packages for this customer
     const packages = await prisma.package.findMany({
       where: {
-        userId: payload.id,
-        status: { not: "failed" }
+        userId: userId,
       },
-      include: {
-        audits: {
-          orderBy: { timestamp: 'desc' },
-          take: 1
-        }
+      orderBy: {
+        createdAt: 'desc',
       },
-      orderBy: { updatedAt: 'desc' },
-      take: 200
+      take: 100, // Limit results
     });
 
-    const total_packages = await prisma.package.count({
-      where: {
-        userId: payload.id,
-        status: { not: "failed" }
-      }
-    });
-
-    const formattedPackages = packages.map(pkg => ({
-      id: pkg.id,
-      tracking_number: pkg.trackingNumber,
-      description: pkg.itemDescription || undefined,
-      status: toUiStatus(pkg.status),
-      current_location: pkg.currentLocation || undefined,
-      estimated_delivery: pkg.estimatedDelivery?.toISOString().slice(0, 10),
-      weight: pkg.weight,
-      weight_kg: pkg.weight,
-      updated_at: pkg.updatedAt.toISOString(),
+    // Map to response format
+    const mapped = packages.map((p) => ({
+      id: p.id,
+      tracking_number: p.trackingNumber,
+      trackingNumber: p.trackingNumber,
+      status: p.status,
+      description: p.itemDescription,
+      weight_kg: p.weight,
+      weight: p.weight,
+      userCode: auth!.userCode,
+      shipper: p.senderName,
+      current_location: p.currentLocation,
+      updated_at: p.updatedAt?.toISOString(),
+      updatedAt: p.updatedAt?.toISOString(),
+      estimated_delivery: p.estimatedDelivery?.toISOString(),
+      invoice_status: p.paymentStatus,
     }));
 
-    return NextResponse.json({ 
-      packages: formattedPackages, 
-      total_packages 
+    return NextResponse.json({
+      packages: mapped,
+      total_packages: mapped.length,
     });
-  } catch (error) {
-    console.error("Error fetching packages:", error);
+  } catch (error: any) {
+    console.error('Error fetching packages:', error);
+
     return NextResponse.json(
-      { error: "Failed to fetch packages" },
+      { error: 'Failed to fetch packages' },
       { status: 500 }
     );
+  } finally {
+    await prisma.$disconnect();
   }
 }

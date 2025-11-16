@@ -4,7 +4,7 @@ import { getAuthFromRequest } from "@/lib/rbac";
 import { stripe } from "@/lib/stripe";
 
 export async function GET(req: Request) {
-  const payload = getAuthFromRequest(req);
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "customer") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const payload = getAuthFromRequest(req);
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "customer") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
