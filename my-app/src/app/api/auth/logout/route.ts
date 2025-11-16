@@ -6,35 +6,37 @@ export async function POST() {
   try {
     const cookieStore = cookies();
     
-    // Clear NextAuth session cookies
-    cookieStore.delete('next-auth.session-token');
-    cookieStore.delete('__Secure-next-auth.session-token');
-    cookieStore.delete('next-auth.csrf-token');
-    cookieStore.delete('__Host-next-auth.csrf-token');
-    
-    // Clear any custom auth token
-    cookieStore.delete('auth_token');
-    
-    const response = NextResponse.json(
-      { success: true, message: 'Logged out successfully' },
-      { status: 200 }
-    );
+    // Create a response that will redirect to login
+    const response = new NextResponse(null, {
+      status: 302,
+      headers: {
+        Location: '/login',
+        'Set-Cookie': '',
+      },
+    });
 
-    // Set cookie headers to expire immediately
-    response.cookies.set('next-auth.session-token', '', {
+    // Clear all auth-related cookies
+    const cookieOptions = {
       httpOnly: true,
       path: '/',
       expires: new Date(0),
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
+      secure: process.env.NODE_ENV === 'production',
+    };
+
+    // Clear all possible auth cookies
+    [
+      'next-auth.session-token',
+      '__Secure-next-auth.session-token',
+      'next-auth.csrf-token',
+      '__Host-next-auth.csrf-token',
+      'auth_token',
+      'token'
+    ].forEach(cookieName => {
+      response.cookies.set(cookieName, '', cookieOptions);
     });
 
-    response.cookies.set('__Secure-next-auth.session-token', '', {
-      httpOnly: true,
-      path: '/',
-      expires: new Date(0),
-      sameSite: 'lax',
-      secure: true,
-    });
+    return response;
 
     return response;
   } catch (error) {

@@ -18,12 +18,12 @@ function toUiStatus(status: string): "in_transit" | "ready_for_pickup" | "delive
 }
 
 export async function GET(req: Request) {
-  const payload = getAuthFromRequest(req);
-  if (!payload || payload.role !== "customer") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    const payload = await getAuthFromRequest(req);
+    if (!payload || payload.role !== "customer") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Get user's packages
     const packages = await prisma.package.findMany({
       where: {

@@ -18,16 +18,26 @@ export function LogoutButton({ className, children }: LogoutButtonProps) {
     try {
       setIsLoading(true);
       
-      // Sign out using NextAuth
-      await signOut({
-        redirect: false,
+      // Call the logout API
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
       
-      // Redirect to login page
-      router.push('/login');
-      router.refresh();
+      // Clear any remaining session data
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+      }
+      
+      // Force a full page reload to clear all states
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
+      // Even if there's an error, still redirect to login
+      window.location.href = '/login';
       setIsLoading(false);
     }
   };

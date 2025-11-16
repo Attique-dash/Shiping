@@ -39,12 +39,11 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [showPassword, setShowPassword] = useState(false);
 
-  // Handle client-side mounting
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Handle redirect if already authenticated - ONLY ONCE when session changes
+  // Handle redirect if already authenticated
   useEffect(() => {
     if (status === 'loading') return;
     
@@ -56,7 +55,7 @@ export default function LoginPage() {
         targetUrl = '/admin';
       } else if (role === 'warehouse') {
         targetUrl = '/warehouse';
-      } else if (redirect && redirect !== '/') {
+      } else if (redirect && redirect !== '/' && redirect !== '/login') {
         targetUrl = redirect;
       }
       
@@ -66,7 +65,7 @@ export default function LoginPage() {
       
       router.replace(targetUrl);
     }
-  }, [status, session]); // Removed redirect and tracking from dependencies to prevent loops
+  }, [status, session, redirect, tracking, router]);
 
   useEffect(() => {
     if (error) {
@@ -111,8 +110,8 @@ export default function LoginPage() {
       if (result?.error) {
         throw new Error('Invalid email or password');
       }
-      
-      // Session hook will handle the redirect
+
+      // Success - the useEffect will handle the redirect
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
@@ -173,15 +172,21 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <div className="relative h-64 my-8 w-full">
-              <div className="relative w-full h-full">
+            <div className="relative h-64 my-8 w-full flex items-center justify-center">
+              <div className="relative w-48 h-48">
                 <Image 
                   src="/images/Logo.png" 
-                  alt="Authentication" 
+                  alt="Clean JS Shipping Logo" 
                   fill
                   priority 
                   sizes="(max-width: 768px) 100vw, 50vw"
                   className="object-contain drop-shadow-2xl"
+                  onError={(e) => {
+                    // Fallback to a placeholder if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.onerror = null;
+                    target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzBBNzY5MyIgZD0iTTEyLDIwQTgsOCAwIDAsMSA0LDEyQTgsOCAwIDAsMSAxMiw0QTgsOCAwIDAsMSAyMCwxMkE4LDggMCAwLDEgMTIsMjBNMTIsMkExMCwxMCAwIDAsMCAyLDEyQTEwLDEwIDAgMCwwIDEyLDIyQTEwLDEwIDAgMCwwIDIyLDEyQTEwLDEwIDAgMCwwIDEyLDJNMTIsMTBBMiwyIDAgMCwxIDE0LDEyQTIsMiAwIDAsMSAxMiwxNEEyLDIgMCAwLDEgMTAsMTJBMiwyIDAgMCwxIDEyLDExTTEyLDEzQTEgMSAwIDAsMCAxMywxMkExLDEgMCAwLDAgMTIsMTFBMSwxIDAgMCwwIDExLDEyQTEsMSAwIDAsMCAxMiwxM1oiIC8+PC9zdmc+';
+                  }}
                 />
               </div>
             </div>
@@ -279,9 +284,9 @@ export default function LoginPage() {
                     />
                     <span className="group-hover:text-[#0E7893] transition-colors">Remember me</span>
                   </label>
-                  <a href="/password-reset" className="text-[#0E7893] hover:text-[#E67919] font-medium transition-colors hover:underline">
+                  <Link href="/password-reset" className="text-[#0E7893] hover:text-[#E67919] font-medium transition-colors hover:underline">
                     Forgot Password?
-                  </a>
+                  </Link>
                 </div>
 
                 <button

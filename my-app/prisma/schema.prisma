@@ -1,18 +1,15 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // or "mysql" depending on your database
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 // Admin model - for system administrators
 model Admin {
-  id        String   @id @default(cuid())
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
   email     String   @unique
   password  String
   name      String
@@ -27,7 +24,7 @@ model Admin {
 
 // User model - for customers/clients
 model User {
-  id             String    @id @default(cuid())
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
   email          String    @unique
   password       String
   name           String
@@ -51,12 +48,14 @@ model User {
   payments       Payment[]
   messages       Message[]
   
+  // Indexes
+  @@index([phone])
   @@map("users")
 }
 
 // ApiKey model - for API keys management
 model ApiKey {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   key         String   @unique
   name        String
   description String?
@@ -72,9 +71,9 @@ model ApiKey {
 
 // Broadcast model - for system-wide announcements
 model Broadcast {
-  id          String   @id @default(cuid())
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
-  message     String   @db.Text
+  message     String
   type        String   // 'info', 'warning', 'alert', 'announcement'
   priority    String   @default("normal") // 'low', 'normal', 'high', 'urgent'
   targetUsers String[] // Array of user IDs or ['all']
@@ -88,8 +87,8 @@ model Broadcast {
 
 // Manifest model - for shipment manifests
 model Manifest {
-  id              String    @id @default(cuid())
-  manifestNumber  String    @unique
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  manifestNumber  String
   route           String
   vehicleNumber   String?
   driverName      String?
@@ -98,7 +97,7 @@ model Manifest {
   arrivalDate     DateTime?
   status          String    @default("pending") // 'pending', 'in_transit', 'arrived', 'completed'
   totalPackages   Int       @default(0)
-  notes           String?   @db.Text
+  notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -110,14 +109,14 @@ model Manifest {
 
 // Message model - for customer support messages
 model Message {
-  id         String   @id @default(cuid())
-  userId     String
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String   @db.ObjectId
   subject    String
-  message    String   @db.Text
+  message    String
   status     String   @default("open") // 'open', 'in_progress', 'resolved', 'closed'
   priority   String   @default("normal") // 'low', 'normal', 'high'
   category   String?  // 'inquiry', 'complaint', 'feedback', 'support'
-  response   String?  @db.Text
+  response   String?
   respondedAt DateTime?
   respondedBy String?
   isRead     Boolean  @default(false)
@@ -127,14 +126,17 @@ model Message {
   // Relations
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Indexes
+  @@index([userId])
+  @@index([status])
   @@map("messages")
 }
 
 // Package/Parcel model - main entity for shipments
 model Package {
-  id                String    @id @default(cuid())
+  id                String    @id @default(auto()) @map("_id") @db.ObjectId
   trackingNumber    String    @unique
-  referenceNumber   String?   @unique
+  referenceNumber   String?
   
   // Sender Information
   senderName        String
@@ -184,17 +186,17 @@ model Package {
   pickupDate        DateTime?
   
   // Additional Information
-  specialInstructions String? @db.Text
+  specialInstructions String?
   signature         String?   // signature URL
   proofOfDelivery   String?   // image URL
-  notes             String?   @db.Text
+  notes             String?
   isFragile         Boolean   @default(false)
   requiresSignature Boolean   @default(false)
   isInsured         Boolean   @default(false)
   
   // Foreign Keys
-  userId            String
-  manifestId        String?
+  userId            String    @db.ObjectId
+  manifestId        String?   @db.ObjectId
   
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -205,16 +207,20 @@ model Package {
   audits            Audit[]
   postTransactions  PostTransaction[]
 
+  // Indexes
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
   @@map("packages")
 }
 
 // Audit model - for tracking package status changes
 model Audit {
-  id          String   @id @default(cuid())
-  packageId   String
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  packageId   String   @db.ObjectId
   status      String
   location    String?
-  description String?  @db.Text
+  description String?
   performedBy String?  // admin/staff who performed the action
   timestamp   DateTime @default(now())
   
@@ -226,8 +232,8 @@ model Audit {
 
 // Payment model - for payment transactions
 model Payment {
-  id              String   @id @default(cuid())
-  userId          String
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
   transactionId   String   @unique
   amount          Float
   currency        String   @default("PKR")
@@ -243,16 +249,19 @@ model Payment {
   // Relations
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Indexes
+  @@index([userId])
+  @@index([status])
   @@map("payments")
 }
 
 // PostTransaction model - for post-delivery transactions
 model PostTransaction {
-  id              String   @id @default(cuid())
-  packageId       String
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  packageId       String   @db.ObjectId
   transactionType String   // 'delivery_confirmation', 'payment_collection', 'return', 'exchange'
   amount          Float?
-  notes           String?  @db.Text
+  notes           String?
   performedBy     String?  // staff member
   performedAt     DateTime @default(now())
   createdAt       DateTime @default(now())
@@ -266,7 +275,7 @@ model PostTransaction {
 
 // PreAlert model - for advance shipment notifications
 model PreAlert {
-  id               String   @id @default(cuid())
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
   trackingNumber   String   @unique
   estimatedArrival DateTime
   shipperName      String
@@ -274,7 +283,7 @@ model PreAlert {
   destination      String
   weight           Float
   pieces           Int
-  description      String?  @db.Text
+  description      String?
   status           String   @default("pending") // 'pending', 'received', 'processed', 'cancelled'
   notifiedAt       DateTime?
   createdAt        DateTime @default(now())
@@ -282,24 +291,3 @@ model PreAlert {
 
   @@map("prealerts")
 }
-
-// Indexes for better query performance
-// Add indexes on frequently queried fields
-// Package indexes
-@@index([Package.trackingNumber])
-@@index([Package.status])
-@@index([Package.userId])
-@@index([Package.createdAt])
-
-// User indexes
-@@index([User.email])
-@@index([User.phone])
-
-// Message indexes
-@@index([Message.userId])
-@@index([Message.status])
-
-// Payment indexes
-@@index([Payment.userId])
-@@index([Payment.status])
-@@index([Payment.transactionId])

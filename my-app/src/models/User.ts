@@ -9,7 +9,7 @@ export interface IUser {
   lastName?: string;
   email: string;
   passwordHash: string;
-  password?: string; // alias for passwordHash
+  password?: string;
   phone?: string;
   role: UserRole;
   branch?: string;
@@ -53,7 +53,6 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// Virtual field for backward compatibility
 UserSchema.virtual("password")
   .get(function() {
     return this.passwordHash;
@@ -62,8 +61,10 @@ UserSchema.virtual("password")
     this.passwordHash = value;
   });
 
-// Ensure virtuals are included in JSON
 UserSchema.set("toJSON", { virtuals: true });
 UserSchema.set("toObject", { virtuals: true });
 
-export const User = models.User || model<IUser>("User", UserSchema);
+const User = (models && models.User) || model<IUser>("User", UserSchema);
+
+export { User };
+export default User;

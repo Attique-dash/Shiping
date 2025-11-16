@@ -4,7 +4,7 @@ const nextConfig = {
   serverExternalPackages: ['mongoose', 'mongodb', 'bcryptjs'],
   
   env: {
-    MONGODB_URI: process.env.MONGODB_URI,
+    DATABASE_URL: process.env.DATABASE_URL,
   },
   
   images: {

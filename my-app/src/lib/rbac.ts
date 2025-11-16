@@ -12,7 +12,7 @@ export interface AuthPayload {
 
 export async function getAuthFromRequest(req: Request): Promise<AuthPayload | null> {
   try {
-    // Try to get token from Authorization header
+    // Try to get token from Authorization header first
     const authHeader = req.headers.get("authorization");
     if (authHeader?.startsWith("Bearer ")) {
       const token = authHeader.substring(7);
@@ -20,7 +20,7 @@ export async function getAuthFromRequest(req: Request): Promise<AuthPayload | nu
       if (payload) return payload as AuthPayload;
     }
 
-    // Try to get token from cookie
+    // Then try to get token from cookie
     const cookieStore = cookies();
     const token = cookieStore.get("auth_token")?.value;
     if (token) {
