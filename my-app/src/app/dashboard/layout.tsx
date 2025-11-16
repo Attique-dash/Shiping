@@ -31,25 +31,11 @@ export default function CustomerLayout({
 
   const navItems = [
     {
-      href: "/customer",
+      href: "/dashboard",
       label: "Dashboard",
       icon: Home,
       description: "Customer dashboard overview",
       color: "from-blue-500 to-blue-600",
-    },
-    {
-      href: "/customer/profile",
-      label: "Profile",
-      icon: User,
-      description: "View and update your profile",
-      color: "from-green-500 to-green-600",
-    },
-    {
-      href: "/customer/manage-account",
-      label: "Manage Account",
-      icon: UserCog,
-      description: "Manage your account settings",
-      color: "from-purple-500 to-purple-600",
     },
     {
       href: "/customer/packages",
@@ -100,6 +86,13 @@ export default function CustomerLayout({
       description: "View archived items",
       color: "from-gray-500 to-gray-600",
     },
+    {
+      href: "/customer/profile",
+      label: "Profile",
+      icon: User,
+      description: "View and update your profile",
+      color: "from-green-500 to-green-600",
+    }
   ];
 
   return (
