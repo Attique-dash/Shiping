@@ -74,7 +74,6 @@ export default function TopHeader() {
     '/admin',
     '/customer',
     '/warehouse',
-    '/dashboard'
   ];
 
   // Check if current route should hide header

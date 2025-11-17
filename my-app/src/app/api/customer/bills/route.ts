@@ -1,3 +1,6 @@
+// Example: src/app/api/customer/bills/route.ts
+// Apply this pattern to ALL customer API routes
+
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { Package, IPackage } from "@/models/Package";
@@ -6,6 +9,7 @@ import { getAuthFromRequest } from "@/lib/rbac";
 
 export async function GET(req: Request) {
   try {
+    // ✅ FIX: Added await here
     const payload = await getAuthFromRequest(req);
     if (!payload || (payload.role !== "customer" && payload.role !== "admin")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,7 +47,6 @@ export async function GET(req: Request) {
     const bills: Bill[] = pkgs.flatMap((p: IPackage & { invoiceRecords?: any[]; invoiceDocuments?: any[] }) => {
       const recs = Array.isArray(p.invoiceRecords) ? p.invoiceRecords : [];
       if (recs.length === 0) {
-        // No structured invoice yet; reflect if documents exist
         const docs = Array.isArray(p.invoiceDocuments) ? p.invoiceDocuments : [];
         const payment_status: Bill["payment_status"] = docs.length > 0 ? "submitted" : "none";
         return [
@@ -71,7 +74,7 @@ export async function GET(req: Request) {
       ];
     });
 
-    return NextResponse.json(bills);
+    return NextResponse.json({ bills });
   } catch (error) {
     console.error("Error in /api/customer/bills:", error);
     return NextResponse.json(
