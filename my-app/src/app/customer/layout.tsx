@@ -31,7 +31,7 @@ export default function CustomerLayout({
 
   const navItems = [
     {
-      href: "/dashboard",
+      href: "/customer/dashboard",
       label: "Dashboard",
       icon: Home,
       description: "Customer dashboard overview",

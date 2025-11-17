@@ -1,5 +1,9 @@
+// src/app/api/auth/login/route.ts
 import { NextResponse } from 'next/server';
 import { signIn } from 'next-auth/react';
+import { dbConnect } from '@/lib/db';
+import { User } from '@/models/User';
+import { comparePassword } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -12,195 +16,109 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-      callbackUrl: '/dashboard',
-    });
+    await dbConnect();
 
-    if (result?.error) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    return NextResponse.json(
-      { success: true, redirect: result?.url || '/dashboard' },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function POST(req: Request) {
-  try {
-    const body = await req.json() as Partial<LoginRequest>;
-    
-    // Validate request body
-    if (!body.email || !body.password) {
-      return NextResponse.json(
-        { 
-          error: { 
-            message: "Email and password are required",
-            details: { 
-              email: !body.email ? "Email is required" : undefined,
-              password: !body.password ? "Password is required" : undefined
-            }
-          } 
-        },
-        { status: 400 }
-      );
-    }
-    
-    const { email, password } = body;
-
-    try {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        return NextResponse.json(
-          { 
-            error: { 
-              message: "Invalid email or password",
-              details: { email: "Invalid email or password" }
-            } 
-          },
-          { status: 401 }
-        );
-      }
-
-      return NextResponse.json(
-        { success: true },
-        { status: 200 }
-      );
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return NextResponse.json(
-        { error: { message: 'Authentication failed' } },
-        { status: 500 }
-      );
-    }
-
-    const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24 * 7;
-
-    // Check for admin credentials
+    // Check if this is admin login from .env
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (adminEmail && adminPassword && email === adminEmail && password === adminPassword) {
-      const admin = await prisma.admin.findUnique({ where: { email } });
+      // Find or create admin user
+      let admin = await User.findOne({ email: adminEmail, role: 'admin' });
       
-      const token = signToken({ 
-        role: "admin", 
+      if (!admin) {
+        // Create admin user if doesn't exist
+        const { hashPassword } = await import('@/lib/auth');
+        const passwordHash = await hashPassword(adminPassword);
+        
+        admin = await User.create({
+          userCode: `A${Date.now()}`,
+          firstName: 'Admin',
+          lastName: 'User',
+          email: adminEmail,
+          passwordHash,
+          role: 'admin',
+          accountStatus: 'active',
+          emailVerified: true,
+        });
+      }
+
+      // Use NextAuth signIn
+      const result = await signIn('credentials', {
+        redirect: false,
         email: adminEmail,
-        id: admin?.id || "admin"
+        password: adminPassword,
       });
-      
-      const response = NextResponse.json({
-        message: "Logged in as admin",
-        user: { 
-          id: admin?.id || "admin", 
-          email: adminEmail, 
-          role: "admin"
+
+      if (result?.error) {
+        return NextResponse.json(
+          { error: 'Invalid credentials' },
+          { status: 401 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: admin._id.toString(),
+          email: admin.email,
+          role: 'admin',
+          name: `${admin.firstName} ${admin.lastName}`,
         }
       });
-
-      response.cookies.set("auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge,
-      });
-
-      return response;
     }
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
+    // Find regular user in database
+    const user = await User.findOne({ email: email.toLowerCase() });
 
     if (!user) {
       return NextResponse.json(
-        { 
-          error: { 
-            message: "Invalid email or password",
-            details: { email: "No account found with this email" }
-          } 
-        },
+        { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
     // Verify password
-    const isPasswordValid = await comparePassword(password, user.password);
+    const isPasswordValid = await comparePassword(password, user.passwordHash);
+    
     if (!isPasswordValid) {
       return NextResponse.json(
-        { 
-          error: { 
-            message: "Invalid email or password",
-            details: { password: "Incorrect password" }
-          } 
-        },
+        { error: 'Invalid email or password' },
         { status: 401 }
       );
     }
 
-    // Generate JWT token
-    const token = signToken({
-      id: user.id,
-      email: user.email,
-      role: "customer"
-    });
-
     // Update last login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { updatedAt: new Date() }
+    user.lastLogin = new Date();
+    await user.save();
+
+    // Use NextAuth signIn for session management
+    const result = await signIn('credentials', {
+      redirect: false,
+      email: user.email,
+      password: password,
     });
 
-    const response = NextResponse.json({
-      message: user.isVerified 
-        ? "Logged in successfully" 
-        : "Please verify your email address",
+    if (result?.error) {
+      return NextResponse.json(
+        { error: 'Authentication failed' },
+        { status: 401 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
       user: {
-        id: user.id,
+        id: user._id.toString(),
         email: user.email,
-        name: user.name,
-        role: "customer"
+        role: user.role,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
       }
     });
-
-    response.cookies.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge,
-    });
-
-    return response;
   } catch (error) {
-    console.error("Login error:", error);
+    console.error('Login error:', error);
     return NextResponse.json(
-      { 
-        error: { 
-          message: "An unexpected error occurred",
-          details: process.env.NODE_ENV === 'development' ? error : undefined
-        } 
-      },
+      { error: 'An unexpected error occurred' },
       { status: 500 }
     );
   }

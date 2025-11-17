@@ -1,3 +1,4 @@
+// middleware.ts
 import { NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import type { NextRequest } from 'next/server';
@@ -35,6 +36,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow static files and Next.js internals
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/images') ||
+    pathname.startsWith('/fonts') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
+  }
+
   // For protected routes, check authentication
   try {
     const token = await getToken({
@@ -52,15 +63,16 @@ export async function middleware(request: NextRequest) {
     const userRole = token.role as string;
 
     // Role-based access control
+    
     // Admin routes - only admins can access
     if (pathname.startsWith('/admin')) {
       if (userRole !== 'admin') {
-        // Redirect to appropriate dashboard based on role
         const dashboardUrl = userRole === 'warehouse' 
           ? new URL('/warehouse', request.url)
-          : new URL('/dashboard', request.url);
+          : new URL('/customer/dashboard', request.url);
         return NextResponse.redirect(dashboardUrl);
       }
+      return NextResponse.next();
     }
 
     // Warehouse routes - only warehouse staff can access
@@ -68,9 +80,10 @@ export async function middleware(request: NextRequest) {
       if (userRole !== 'warehouse') {
         const dashboardUrl = userRole === 'admin'
           ? new URL('/admin', request.url)
-          : new URL('/dashboard', request.url);
+          : new URL('/customer/dashboard', request.url);
         return NextResponse.redirect(dashboardUrl);
       }
+      return NextResponse.next();
     }
 
     // Customer routes - only customers can access
@@ -81,9 +94,12 @@ export async function middleware(request: NextRequest) {
           : new URL('/warehouse', request.url);
         return NextResponse.redirect(dashboardUrl);
       }
+      return NextResponse.next();
     }
 
+    // Default: allow access if authenticated
     return NextResponse.next();
+    
   } catch (error) {
     console.error('Middleware error:', error);
     const loginUrl = new URL('/login', request.url);
@@ -94,6 +110,13 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, fonts, etc.)
+     */
     '/((?!_next/static|_next/image|favicon.ico|images|fonts|api/auth).*)',
   ],
 };

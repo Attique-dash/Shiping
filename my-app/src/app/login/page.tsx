@@ -49,14 +49,14 @@ export default function LoginPage() {
     
     if (status === 'authenticated' && session?.user) {
       const role = session.user.role as string | undefined;
-      let targetUrl = '/customer';
+      let targetUrl = '/customer/dashboard';
       
       if (role === 'admin') {
         targetUrl = '/admin';
       } else if (role === 'warehouse') {
         targetUrl = '/warehouse';
       } else if (role === 'customer') {
-        targetUrl = '/customer';
+        targetUrl = '/customer/dashboard';
       } else if (redirect && redirect !== '/' && redirect !== '/login') {
         targetUrl = redirect;
       }
