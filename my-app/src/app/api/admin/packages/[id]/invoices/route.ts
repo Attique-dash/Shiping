@@ -4,7 +4,7 @@ import { Package } from "@/models/Package";
 import { getAuthFromRequest } from "@/lib/rbac";
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
-  const payload = getAuthFromRequest(req);
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await dbConnect();
   const pkg = await Package.findById(params.id).select("invoiceRecords trackingNumber userCode").lean();
@@ -17,7 +17,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 }
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
-  const payload = getAuthFromRequest(req);
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   await dbConnect();
 

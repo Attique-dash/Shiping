@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
-    // IMPORTANT: Use await since getAuthFromRequest is now async
+    // CRITICAL FIX: Always await getAuthFromRequest
     const auth = await getAuthFromRequest(req);
     
     // Check if user is authorized
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       orderBy: {
         createdAt: 'desc',
       },
-      take: 100, // Limit results
+      take: 100,
     });
 
     // Map to response format

@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { verifyToken } from "./auth";
 import { getToken } from "next-auth/jwt";
+import { NextRequest } from "next/server";
 
 export interface AuthPayload {
   id?: string;
@@ -11,7 +12,7 @@ export interface AuthPayload {
   userCode?: string;
 }
 
-export async function getAuthFromRequest(req: Request): Promise<AuthPayload | null> {
+export async function getAuthFromRequest(req: Request | NextRequest): Promise<AuthPayload | null> {
   try {
     // Method 1: Try NextAuth JWT token first
     const token = await getToken({
@@ -22,6 +23,8 @@ export async function getAuthFromRequest(req: Request): Promise<AuthPayload | nu
     if (token && token.email && token.role) {
       return {
         id: token.id as string,
+        _id: token.id as string,
+        uid: token.id as string,
         email: token.email as string,
         role: token.role as "admin" | "customer" | "warehouse",
         userCode: token.userCode as string | undefined,
@@ -33,7 +36,16 @@ export async function getAuthFromRequest(req: Request): Promise<AuthPayload | nu
     if (authHeader?.startsWith("Bearer ")) {
       const bearerToken = authHeader.substring(7);
       const payload = verifyToken(bearerToken);
-      if (payload) return payload as AuthPayload;
+      if (payload && payload.email && payload.role) {
+        return {
+          id: payload.id,
+          _id: payload.id,
+          uid: payload.id,
+          email: payload.email,
+          role: payload.role,
+          userCode: payload.userCode,
+        } as AuthPayload;
+      }
     }
 
     // Method 3: Try cookie-based auth token
@@ -41,7 +53,16 @@ export async function getAuthFromRequest(req: Request): Promise<AuthPayload | nu
     const authToken = cookieStore.get("auth_token")?.value;
     if (authToken) {
       const payload = verifyToken(authToken);
-      if (payload) return payload as AuthPayload;
+      if (payload && payload.email && payload.role) {
+        return {
+          id: payload.id,
+          _id: payload.id,
+          uid: payload.id,
+          email: payload.email,
+          role: payload.role,
+          userCode: payload.userCode,
+        } as AuthPayload;
+      }
     }
 
     return null;

@@ -1,31 +1,42 @@
+// src/app/api/customer/payments/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthFromRequest } from "@/lib/rbac";
 import { stripe } from "@/lib/stripe";
 
 export async function GET(req: Request) {
+  // ✅ FIX: Added await
   const payload = await getAuthFromRequest(req);
+  
   if (!payload || payload.role !== "customer") {
+    console.log('[Payments API] Unauthorized:', payload);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
+    console.log('[Payments API] Fetching payments for user:', payload.id);
+    
     const payments = await prisma.payment.findMany({
       where: { userId: payload.id },
       orderBy: { createdAt: 'desc' },
       take: 100
     });
 
+    console.log('[Payments API] Found payments:', payments.length);
+
     return NextResponse.json({ payments });
   } catch (error) {
-    console.error("Error fetching payments:", error);
+    console.error("[Payments API] Error:", error);
     return NextResponse.json({ error: "Failed to fetch payments" }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
+  // ✅ FIX: Added await
   const payload = await getAuthFromRequest(req);
+  
   if (!payload || payload.role !== "customer") {
+    console.log('[Payments API] Unauthorized:', payload);
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -42,6 +53,8 @@ export async function POST(req: Request) {
     if (!amount || amount < 0.5) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
+
+    console.log('[Payments API] Creating payment for user:', payload.id, 'amount:', amount);
 
     // Create Stripe PaymentIntent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -67,6 +80,8 @@ export async function POST(req: Request) {
       }
     });
 
+    console.log('[Payments API] Payment created:', created.id);
+
     return NextResponse.json({
       payment_id: created.id,
       client_secret: paymentIntent.client_secret,
@@ -74,7 +89,7 @@ export async function POST(req: Request) {
       currency,
     });
   } catch (error) {
-    console.error("Error creating payment:", error);
+    console.error("[Payments API] Error:", error);
     return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
   }
 }

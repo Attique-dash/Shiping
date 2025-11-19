@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     const { valid, keyInfo } = await verifyWarehouseApiKey(req);
     if (valid && keyInfo?.keyPrefix) identifier = keyInfo.keyPrefix;
     else {
-      const payload = getAuthFromRequest(req);
+      const payload = await getAuthFromRequest(req);
       const fromCookie = (payload?.uid as string | undefined) || (payload?.email as string | undefined) || (payload?.userCode as string | undefined);
       if (fromCookie) identifier = `wh_${fromCookie}`;
     }
@@ -150,7 +150,7 @@ export async function POST(req: Request) {
     }
   }
 
-  const payload = getAuthFromRequest(req);
+  const payload = await getAuthFromRequest(req);
   const updated_by = (payload?.userCode as string) || (payload?.email as string) || "warehouse";
   const new_status_ui = internalToUiStatus(status);
   const finalLocation = location || (pkg?.branch as string | undefined);

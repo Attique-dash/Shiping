@@ -8,7 +8,8 @@ import { hashPassword } from "@/lib/auth";
 import { adminCreateCustomerSchema } from "@/lib/validators";
 
 export async function GET(req: Request) {
-  const payload = getAuthFromRequest(req);
+  // CRITICAL FIX: Add await
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -96,7 +97,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const payload = getAuthFromRequest(req);
+  // CRITICAL FIX: Add await
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -125,12 +127,10 @@ export async function POST(req: Request) {
 
     const passwordHash = await hashPassword(password);
     
-    // Split full name
     const nameParts = full_name.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
     
-    // Generate unique user code
     const userCode = `C${Date.now()}`;
     
     const created = await User.create({
@@ -164,7 +164,8 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
-  const payload = getAuthFromRequest(req);
+  // CRITICAL FIX: Add await
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -225,7 +226,8 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
-  const payload = getAuthFromRequest(req);
+  // CRITICAL FIX: Add await
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

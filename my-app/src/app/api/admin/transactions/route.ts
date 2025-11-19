@@ -4,7 +4,7 @@ import { getAuthFromRequest } from "@/lib/rbac";
 import { Payment } from "@/models/Payment";
 
 export async function GET(req: Request) {
-  const payload = getAuthFromRequest(req);
+  const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
