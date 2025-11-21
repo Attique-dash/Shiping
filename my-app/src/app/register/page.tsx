@@ -160,7 +160,7 @@ export default function RegisterPage() {
                 <FaPlane className="text-[#E67919] text-2xl" />
               </div>
               <div>
-                <h2 className="text-white font-bold text-2xl">Clean JS Shipping</h2>
+                <h2 className="text-white font-bold text-2xl">Clean J Shipping</h2>
                 <p className="text-cyan-100 text-xs">Logistics & Delivery</p>
               </div>
             </div>
@@ -194,7 +194,7 @@ export default function RegisterPage() {
                 <FaPlane className="text-white text-xl" />
               </div>
               <div>
-                <h2 className="font-bold text-xl text-[#E67919]">Clean JS Shipping</h2>
+                <h2 className="font-bold text-xl text-[#E67919]">Clean J Shipping</h2>
               </div>
             </div>
 

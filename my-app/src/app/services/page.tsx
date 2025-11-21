@@ -71,7 +71,7 @@ export default function ServicesPage() {
               </p>
               <p className="mt-3 text-gray-600 text-base md:text-lg leading-relaxed">
                 When time is critical, our air freight services deliver. Whether
-                it&apos;s documents, packages, or bulk goods, Clean JS Shipping
+                it&apos;s documents, packages, or bulk goods, Clean J Shipping
                 ensures swift and secure transport to and from international
                 destinations. We handle customs clearance, tracking, and
                 logistics so your shipment arrives on time — every time.

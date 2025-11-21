@@ -169,7 +169,7 @@ export default function LoginPage() {
                 <FaPlane className="text-[#E67919] text-2xl" />
               </div>
               <div>
-                <h2 className="text-white font-bold text-2xl">Clean JS Shipping</h2>
+                <h2 className="text-white font-bold text-2xl">Clean J Shipping</h2>
                 <p className="text-cyan-100 text-xs">Logistics & Delivery</p>
               </div>
             </div>
@@ -178,7 +178,7 @@ export default function LoginPage() {
               <div className="relative w-48 h-48">
                 <Image 
                   src="/images/Logo.png" 
-                  alt="Clean JS Shipping Logo" 
+                  alt="Clean J Shipping Logo" 
                   fill
                   priority 
                   sizes="(max-width: 768px) 100vw, 50vw"
@@ -208,7 +208,7 @@ export default function LoginPage() {
                 <FaPlane className="text-white text-xl" />
               </div>
               <div>
-                <h2 className="font-bold text-xl text-[#E67919]">Clean JS Shipping</h2>
+                <h2 className="font-bold text-xl text-[#E67919]">Clean J Shipping</h2>
               </div>
             </div>
 

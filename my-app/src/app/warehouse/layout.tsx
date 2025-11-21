@@ -4,19 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
-import { signOut } from "next-auth/react";
 import {
   Home,
-  User,
   Package,
   FileText,
   Plug,
   Users,
-  LogOut,
   ChevronRight,
   Menu,
   X,
 } from "lucide-react";
+import { LogoutButton } from "@/components/LogoutButton";   
 
 export default function WarehouseLayout({
   children,
@@ -29,38 +27,31 @@ export default function WarehouseLayout({
   const navItems = [
     {
       href: "/warehouse",
-      label: "Overview",
+      label: "Dashboard",
       icon: Home,
       description: "Warehouse dashboard overview",
       color: "from-blue-500 to-blue-600",
-    },
-    {
-      href: "/warehouse/account",
-      label: "Account",
-      icon: User,
-      description: "Manage your account settings",
-      color: "from-cyan-500 to-cyan-600",
     },
     {
       href: "/warehouse/packages",
       label: "Packages",
       icon: Package,
       description: "Manage warehouse packages",
-      color: "from-purple-500 to-purple-600",
+      color: "from-yellow-500 to-yellow-600",
     },
     {
       href: "/warehouse/manifests",
       label: "Manifests",
       icon: FileText,
       description: "View and manage manifests",
-      color: "from-orange-500 to-orange-600",
+      color: "from-pink-500 to-pink-600",
     },
     {
       href: "/warehouse/integrations",
       label: "Integrations",
       icon: Plug,
       description: "Connect external services",
-      color: "from-emerald-500 to-emerald-600",
+      color: "from-indigo-500 to-indigo-600",
     },
     {
       href: "/warehouse/customers",
@@ -95,7 +86,7 @@ export default function WarehouseLayout({
                 <div className="text-xl font-bold tracking-tight">
                   Clean J Shipping
                 </div>
-                <div className="text-xs text-cyan-400 font-medium">
+                <div className="text-xs text-amber-400 font-medium">
                   Warehouse Portal
                 </div>
               </div>
@@ -148,23 +139,14 @@ export default function WarehouseLayout({
           </nav>
 
           {/* Sidebar footer with Logout button */}
-          <div className="border-t border-white/10 p-4">
-            <button
-              onClick={async () => {
-                await signOut({ callbackUrl: "/login" });
-              }}
-              className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-blue-100 transition-all duration-200 hover:bg-white/10 hover:text-white"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 shadow-md transition-transform duration-200 group-hover:scale-105">
-                <LogOut className="h-5 w-5 text-white" strokeWidth={2.5} />
-              </div>
-              <span className="flex-1 text-left">Logout</span>
-              <ChevronRight className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100" />
-            </button>
+            <div className="border-t border-white/10 p-4">
+                  <form action="/api/auth/logout" method="POST">
+                      <LogoutButton />
+                  </form>
+                </div>
             <div className="mt-3 px-4 text-xs text-white/40">
               Powered by Tasoko
             </div>
-          </div>
         </aside>
 
         <div className="relative flex-1 h-full overflow-y-auto bg-gray-50">
@@ -215,9 +197,7 @@ export default function WarehouseLayout({
                         height={36}
                       />
                     </div>
-                    <div className="text-sm font-semibold">
-                      Warehouse Portal
-                    </div>
+                    <div className="text-sm font-semibold">Warehouse Portal</div>
                   </div>
                   <button
                     aria-label="Close sidebar"
@@ -263,24 +243,14 @@ export default function WarehouseLayout({
                   })}
                 </nav>
 
-                <div className="border-t border-white/10 p-4">
-                  <button
-                    onClick={async () => {
-                      await signOut({ callbackUrl: "/login" });
-                      setMobileOpen(false);
-                    }}
-                    className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-blue-100 transition-all duration-200 hover:bg-white/10 hover:text-white"
-                  >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-red-600 shadow-md">
-                      <LogOut className="h-5 w-5 text-white" strokeWidth={2.5} />
-                    </div>
-                    <span className="flex-1 text-left">Logout</span>
-                    <ChevronRight className="h-4 w-4 opacity-60" />
-                  </button>
+                   <div className="border-t border-white/10 p-4">
+                  <form action="/api/auth/logout" method="POST">
+                      <LogoutButton />
+                  </form>
+                </div>
                   <div className="mt-3 px-4 text-xs text-white/40">
                     Powered by Tasoko
                   </div>
-                </div>
               </div>
             </div>
           )}

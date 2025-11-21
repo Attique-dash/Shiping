@@ -5,7 +5,6 @@ import Image from "next/image";
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { LogoutButton } from "@/components/LogoutButton";
 
 import { 
   PackageIcon, 

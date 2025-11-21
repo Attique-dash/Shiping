@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { generateTrackingNumber } from "@/lib/tracking";
+import { Package, RefreshCw, Edit, Trash2, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
 
 export default function WarehousePackagesPage() {
   // Add package form
@@ -47,12 +48,9 @@ export default function WarehousePackagesPage() {
     return fallback;
   }
 
-  // Strong tracking generator provided by lib/tracking
-
   function refreshTracking() {
     const v = generateTrackingNumber("TAS");
     setAdd((s) => ({ ...s, trackingNumber: v }));
-    // trigger check
     void checkExists(v);
   }
 
@@ -71,7 +69,6 @@ export default function WarehousePackagesPage() {
     }
   }
 
-  // On mount, if tracking number empty, generate one
   useEffect(() => {
     if (!add.trackingNumber) {
       const v = generateTrackingNumber("TAS");
@@ -85,7 +82,6 @@ export default function WarehousePackagesPage() {
     e.preventDefault();
     setAddLoading(true);
     setAddMsg(null);
-    // Block if duplicate
     if (tnExists) {
       setAddMsg("Tracking number already exists. Click Refresh to generate a new one.");
       setAddLoading(false);
@@ -103,7 +99,6 @@ export default function WarehousePackagesPage() {
     const d = await r.json();
     setAddMsg(r.ok ? "Package saved" : toMessage(d, "Failed to add package"));
     if (r.ok) {
-      // Generate a new tracking for next entry
       const next = generateTrackingNumber("TAS");
       setAdd({ trackingNumber: next, userCode: "", weight: "", shipper: "", description: "", entryDate: new Date().toISOString().slice(0, 10) });
       setTnExists(null);
@@ -144,91 +139,347 @@ export default function WarehousePackagesPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <h1 className="text-2xl font-semibold">Packages</h1>
-
-      <section className="rounded-xl border p-5 space-y-3">
-        <h2 className="font-medium">Add Package</h2>
-        <form className="grid gap-2 max-w-2xl" onSubmit={onAdd}>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex items-center gap-2">
-              <input
-                className={`border rounded px-2 py-1 ${tnExists ? "border-red-500" : ""}`}
-                placeholder="Tracking number (10 chars: letters, numbers, '-', not at start/end)"
-                value={add.trackingNumber}
-                onChange={(e) => {
-                  let v = e.target.value.replace(/\s+/g, "").slice(0, 10);
-                  // Ensure '-' not at start/end; replace with alnum if present there
-                  const letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-                  const numbers = "23456789";
-                  const alnum = letters + numbers;
-                  const pick = () => alnum[Math.floor(Math.random() * alnum.length)];
-                  if (v.startsWith("-")) v = pick() + v.slice(1);
-                  if (v.endsWith("-")) v = v.slice(0, -1) + pick();
-                  setAdd({ ...add, trackingNumber: v });
-                  // debounce exists check
-                  if (checkTimer.current) window.clearTimeout(checkTimer.current);
-                  checkTimer.current = window.setTimeout(() => { void checkExists(v); }, 300);
-                }}
-                required
-              />
-              <button type="button" onClick={refreshTracking} className="rounded border px-2 py-1 text-sm hover:bg-neutral-50">Refresh</button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-12">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-[#0f4d8a] to-[#0a3d6e] text-white mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#E67919] rounded-lg flex items-center justify-center">
+              <Package className="w-6 h-6 text-white" />
             </div>
-            <input className="border rounded px-2 py-1" placeholder="Customer code" value={add.userCode} onChange={(e) => setAdd({ ...add, userCode: e.target.value })} required />
+            <div>
+              <h1 className="text-3xl font-bold">Package Management</h1>
+              <p className="text-blue-100 mt-1">Add, update, and manage warehouse packages</p>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <input className="border rounded px-2 py-1" placeholder="Weight (kg)" value={add.weight} onChange={(e) => setAdd({ ...add, weight: e.target.value })} />
-            <input className="border rounded px-2 py-1" placeholder="Shipper" value={add.shipper} onChange={(e) => setAdd({ ...add, shipper: e.target.value })} />
-            <input className="border rounded px-2 py-1" type="date" value={add.entryDate} onChange={(e) => setAdd({ ...add, entryDate: e.target.value })} />
-          </div>
-          <input className="border rounded px-2 py-1" placeholder="Description" value={add.description} onChange={(e) => setAdd({ ...add, description: e.target.value })} />
-          {tnExists && <div className="text-sm text-red-600">Tracking number already exists. Click Refresh to generate a new one.</div>}
-          <div className="flex items-center gap-3">
-            <button disabled={addLoading || !!tnExists || !add.trackingNumber} className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">{addLoading ? "Saving..." : "Add / Save"}</button>
-            {tnChecking && <span className="text-sm text-neutral-600">Checking...</span>}
-            {addMsg && <span className="text-sm text-neutral-600">{addMsg}</span>}
-          </div>
-        </form>
-      </section>
+        </div>
+      </div>
 
-      <section className="rounded-xl border p-5 space-y-3">
-        <h2 className="font-medium">Update Status</h2>
-        <form className="grid gap-2 max-w-2xl" onSubmit={onUpd}>
-          <div className="grid grid-cols-2 gap-2">
-            <input className="border rounded px-2 py-1" placeholder="Tracking number" value={upd.trackingNumber} onChange={(e) => setUpd({ ...upd, trackingNumber: e.target.value })} required />
-            <select className="border rounded px-2 py-1" value={upd.status} onChange={(e) => setUpd({ ...upd, status: e.target.value })}>
-              {["Unknown", "At Warehouse", "In Transit", "At Local Port", "Delivered", "Deleted"].map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        {/* Add Package Section */}
+        <section className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-[#0f4d8a] to-[#0a3d6e] px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                <Package className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Add New Package</h2>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <input className="border rounded px-2 py-1" placeholder="Note (optional)" value={upd.note} onChange={(e) => setUpd({ ...upd, note: e.target.value })} />
-            <input className="border rounded px-2 py-1" placeholder="Weight (kg)" value={upd.weight} onChange={(e) => setUpd({ ...upd, weight: e.target.value })} />
-            <input className="border rounded px-2 py-1" placeholder="Shipper" value={upd.shipper} onChange={(e) => setUpd({ ...upd, shipper: e.target.value })} />
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <input className="border rounded px-2 py-1" placeholder="Customer code (optional)" value={upd.userCode} onChange={(e) => setUpd({ ...upd, userCode: e.target.value })} />
-            <input className="border rounded px-2 py-1" placeholder="Manifest ID (optional)" value={upd.manifestId} onChange={(e) => setUpd({ ...upd, manifestId: e.target.value })} />
-            <input className="border rounded px-2 py-1" placeholder="Description (optional)" value={upd.description} onChange={(e) => setUpd({ ...upd, description: e.target.value })} />
-          </div>
-          <div className="flex items-center gap-3">
-            <button disabled={updLoading} className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">{updLoading ? "Updating..." : "Update Status"}</button>
-            {updMsg && <span className="text-sm text-neutral-600">{updMsg}</span>}
-          </div>
-        </form>
-      </section>
+          
+          <form className="p-6 space-y-5" onSubmit={onAdd}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tracking Number *</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      className={`w-full border-2 rounded-lg px-4 py-2.5 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent ${
+                        tnExists ? "border-red-500 bg-red-50" : "border-gray-300"
+                      }`}
+                      placeholder="Auto-generated tracking number"
+                      value={add.trackingNumber}
+                      onChange={(e) => {
+                        let v = e.target.value.replace(/\s+/g, "").slice(0, 10);
+                        const letters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+                        const numbers = "23456789";
+                        const alnum = letters + numbers;
+                        const pick = () => alnum[Math.floor(Math.random() * alnum.length)];
+                        if (v.startsWith("-")) v = pick() + v.slice(1);
+                        if (v.endsWith("-")) v = v.slice(0, -1) + pick();
+                        setAdd({ ...add, trackingNumber: v });
+                        if (checkTimer.current) window.clearTimeout(checkTimer.current);
+                        checkTimer.current = window.setTimeout(() => { void checkExists(v); }, 300);
+                      }}
+                      required
+                    />
+                    {tnChecking && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={refreshTracking} 
+                    className="flex items-center gap-2 bg-[#E67919] hover:bg-[#d66e15] text-white rounded-lg px-4 py-2.5 transition-colors font-medium"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Refresh
+                  </button>
+                </div>
+                {tnExists && (
+                  <div className="mt-2 flex items-center gap-2 text-red-600 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Tracking number already exists. Click Refresh to generate a new one.</span>
+                  </div>
+                )}
+              </div>
 
-      <section className="rounded-xl border p-5 space-y-3">
-        <h2 className="font-medium">Delete Package</h2>
-        <form className="grid gap-2 max-w-xl" onSubmit={onDel}>
-          <div className="grid grid-cols-2 gap-2">
-            <input className="border rounded px-2 py-1" placeholder="Tracking number" value={del.trackingNumber} onChange={(e) => setDel({ trackingNumber: e.target.value })} required />
-            <button disabled={delLoading} className="rounded bg-red-600 px-3 py-1.5 text-sm text-white disabled:opacity-50">{delLoading ? "Deleting..." : "Delete"}</button>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Customer Code *</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent transition-colors" 
+                  placeholder="Enter customer code" 
+                  value={add.userCode} 
+                  onChange={(e) => setAdd({ ...add, userCode: e.target.value })} 
+                  required 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent transition-colors" 
+                  placeholder="0.00" 
+                  type="number"
+                  step="0.01"
+                  value={add.weight} 
+                  onChange={(e) => setAdd({ ...add, weight: e.target.value })} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Shipper</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent transition-colors" 
+                  placeholder="Shipper name" 
+                  value={add.shipper} 
+                  onChange={(e) => setAdd({ ...add, shipper: e.target.value })} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Entry Date</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent transition-colors" 
+                  type="date" 
+                  value={add.entryDate} 
+                  onChange={(e) => setAdd({ ...add, entryDate: e.target.value })} 
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+              <input 
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent transition-colors" 
+                placeholder="Package description" 
+                value={add.description} 
+                onChange={(e) => setAdd({ ...add, description: e.target.value })} 
+              />
+            </div>
+
+            <div className="flex items-center gap-4 pt-2">
+              <button 
+                disabled={addLoading || !!tnExists || !add.trackingNumber} 
+                className="flex items-center gap-2 bg-[#0f4d8a] hover:bg-[#0a3d6e] disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-6 py-3 transition-colors font-semibold"
+              >
+                {addLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Add Package
+                  </>
+                )}
+              </button>
+              {addMsg && (
+                <div className={`flex items-center gap-2 text-sm font-medium ${addMsg.includes("saved") ? "text-green-600" : "text-red-600"}`}>
+                  {addMsg.includes("saved") ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  <span>{addMsg}</span>
+                </div>
+              )}
+            </div>
+          </form>
+        </section>
+
+        {/* Update Status Section */}
+        <section className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-[#E67919] to-[#d66e15] px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                <Edit className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Update Package Status</h2>
+            </div>
           </div>
-          {delMsg && <span className="text-sm text-neutral-600">{delMsg}</span>}
-        </form>
-      </section>
+          
+          <form className="p-6 space-y-5" onSubmit={onUpd}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tracking Number *</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="Enter tracking number" 
+                  value={upd.trackingNumber} 
+                  onChange={(e) => setUpd({ ...upd, trackingNumber: e.target.value })} 
+                  required 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status *</label>
+                <select 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors bg-white" 
+                  value={upd.status} 
+                  onChange={(e) => setUpd({ ...upd, status: e.target.value })}
+                >
+                  {["Unknown", "At Warehouse", "In Transit", "At Local Port", "Delivered", "Deleted"].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Weight (kg)</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="0.00"
+                  type="number"
+                  step="0.01"
+                  value={upd.weight} 
+                  onChange={(e) => setUpd({ ...upd, weight: e.target.value })} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Shipper</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="Shipper name" 
+                  value={upd.shipper} 
+                  onChange={(e) => setUpd({ ...upd, shipper: e.target.value })} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Customer Code</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="Customer code" 
+                  value={upd.userCode} 
+                  onChange={(e) => setUpd({ ...upd, userCode: e.target.value })} 
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Note</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="Optional note" 
+                  value={upd.note} 
+                  onChange={(e) => setUpd({ ...upd, note: e.target.value })} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Manifest ID</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="Optional manifest ID" 
+                  value={upd.manifestId} 
+                  onChange={(e) => setUpd({ ...upd, manifestId: e.target.value })} 
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <input 
+                  className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E67919] focus:border-transparent transition-colors" 
+                  placeholder="Optional description" 
+                  value={upd.description} 
+                  onChange={(e) => setUpd({ ...upd, description: e.target.value })} 
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 pt-2">
+              <button 
+                disabled={updLoading} 
+                className="flex items-center gap-2 bg-[#E67919] hover:bg-[#d66e15] disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-6 py-3 transition-colors font-semibold"
+              >
+                {updLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Updating...
+                  </>
+                ) : (
+                  <>
+                    <Edit className="w-5 h-5" />
+                    Update Status
+                  </>
+                )}
+              </button>
+              {updMsg && (
+                <div className={`flex items-center gap-2 text-sm font-medium ${updMsg.includes("updated") ? "text-green-600" : "text-red-600"}`}>
+                  {updMsg.includes("updated") ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  <span>{updMsg}</span>
+                </div>
+              )}
+            </div>
+          </form>
+        </section>
+
+        {/* Delete Package Section */}
+        <section className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-white" />
+              </div>
+              <h2 className="text-xl font-semibold text-white">Delete Package</h2>
+            </div>
+          </div>
+          
+          <form className="p-6 space-y-5" onSubmit={onDel}>
+            <div className="max-w-2xl">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Tracking Number *</label>
+              <input 
+                className="w-full border-2 border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-colors" 
+                placeholder="Enter tracking number to delete" 
+                value={del.trackingNumber} 
+                onChange={(e) => setDel({ trackingNumber: e.target.value })} 
+                required 
+              />
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button 
+                disabled={delLoading} 
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg px-6 py-3 transition-colors font-semibold"
+              >
+                {delLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-5 h-5" />
+                    Delete Package
+                  </>
+                )}
+              </button>
+              {delMsg && (
+                <div className={`flex items-center gap-2 text-sm font-medium ${delMsg.includes("deleted") ? "text-green-600" : "text-red-600"}`}>
+                  {delMsg.includes("deleted") ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                  <span>{delMsg}</span>
+                </div>
+              )}
+            </div>
+          </form>
+        </section>
+      </div>
     </div>
   );
 }
