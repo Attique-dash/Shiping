@@ -13,8 +13,11 @@ import {
   ChevronRight,
   Menu,
   X,
+  Search,
+  Upload,
+  
 } from "lucide-react";
-import { LogoutButton } from "@/components/LogoutButton";   
+import { LogoutButton } from "@/components/LogoutButton";
 
 export default function WarehouseLayout({
   children,
@@ -29,7 +32,7 @@ export default function WarehouseLayout({
       href: "/warehouse",
       label: "Dashboard",
       icon: Home,
-      description: "Warehouse dashboard overview",
+      description: "Warehouse dashboard with analytics",
       color: "from-blue-500 to-blue-600",
     },
     {
@@ -40,6 +43,20 @@ export default function WarehouseLayout({
       color: "from-yellow-500 to-yellow-600",
     },
     {
+      href: "/warehouse/search",
+      label: "Search",
+      icon: Search,
+      description: "Advanced package search",
+      color: "from-purple-500 to-purple-600",
+    },
+    {
+      href: "/warehouse/bulk-upload",
+      label: "Bulk Upload",
+      icon: Upload,
+      description: "Upload multiple packages",
+      color: "from-green-500 to-green-600",
+    },
+    {
       href: "/warehouse/manifests",
       label: "Manifests",
       icon: FileText,
@@ -47,18 +64,25 @@ export default function WarehouseLayout({
       color: "from-pink-500 to-pink-600",
     },
     {
-      href: "/warehouse/integrations",
-      label: "Integrations",
-      icon: Plug,
-      description: "Connect external services",
-      color: "from-indigo-500 to-indigo-600",
-    },
-    {
       href: "/warehouse/customers",
       label: "Customers",
       icon: Users,
       description: "Customer management",
-      color: "from-pink-500 to-pink-600",
+      color: "from-indigo-500 to-indigo-600",
+    },
+    {
+      href: "/warehouse/integrations",
+      label: "Integrations",
+      icon: Plug,
+      description: "API integrations",
+      color: "from-orange-500 to-orange-600",
+    },
+    {
+      href: "/warehouse/reports",
+      label: "Report",
+      icon: Plug,
+      description: "API integrations",
+      color: "from-orange-500 to-orange-600",
     },
   ];
 
@@ -70,7 +94,6 @@ export default function WarehouseLayout({
           {/* Header */}
           <div className="border-b border-white/10 bg-gradient-to-r from-[#0e447d] to-[#0c3a6b] px-6 py-5">
             <div className="flex items-center gap-3">
-              {/* Logo Box */}
               <div className="flex h-12 w-12 items-center justify-center rounded-md bg-white/10 backdrop-blur-sm">
                 <Image
                   src="/images/Logo.png"
@@ -80,8 +103,6 @@ export default function WarehouseLayout({
                   className="h-10 w-12 object-contain"
                 />
               </div>
-
-              {/* Title */}
               <div>
                 <div className="text-xl font-bold tracking-tight">
                   Clean J Shipping
@@ -138,22 +159,21 @@ export default function WarehouseLayout({
             })}
           </nav>
 
-          {/* Sidebar footer with Logout button */}
-            <div className="border-t border-white/10 p-4">
-                  <form action="/api/auth/logout" method="POST">
-                      <LogoutButton />
-                  </form>
-                </div>
-            <div className="mt-3 px-4 text-xs text-white/40">
-              Powered by Tasoko
-            </div>
+          {/* Sidebar footer */}
+          <div className="border-t border-white/10 p-4">
+            <form action="/api/auth/logout" method="POST">
+              <LogoutButton />
+            </form>
+          </div>
+          <div className="mt-3 px-4 text-xs text-white/40">
+            Powered by Tasoko
+          </div>
         </aside>
 
         <div className="relative flex-1 h-full overflow-y-auto bg-gray-50">
-          {/* Mobile header (small screens) */}
+          {/* Mobile header */}
           <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur md:hidden">
             <div className="relative flex items-center justify-between px-3 py-2">
-              {/* Left: Logo */}
               <div className="flex items-center">
                 <Image
                   src="/images/Logo.png"
@@ -162,13 +182,9 @@ export default function WarehouseLayout({
                   height={36}
                 />
               </div>
-
-              {/* Center: Title */}
               <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-base font-semibold text-gray-900">
                 Warehouse Portal
               </div>
-
-              {/* Right: Toggle */}
               <button
                 aria-label="Open sidebar"
                 onClick={() => setMobileOpen(true)}
@@ -243,14 +259,14 @@ export default function WarehouseLayout({
                   })}
                 </nav>
 
-                   <div className="border-t border-white/10 p-4">
+                <div className="border-t border-white/10 p-4">
                   <form action="/api/auth/logout" method="POST">
-                      <LogoutButton />
+                    <LogoutButton />
                   </form>
                 </div>
-                  <div className="mt-3 px-4 text-xs text-white/40">
-                    Powered by Tasoko
-                  </div>
+                <div className="mt-3 px-4 text-xs text-white/40">
+                  Powered by Tasoko
+                </div>
               </div>
             </div>
           )}
