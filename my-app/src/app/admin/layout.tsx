@@ -22,6 +22,7 @@ import {
   Menu,
   X,
   FileText,
+  Calculator
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -130,6 +131,13 @@ export default function AdminLayout({
       icon: BookOpen,
       description: "Guides and API docs",
       color: "from-slate-500 to-slate-600",
+    },
+    {
+      href: "/admin/rate-calculator",
+      label: "Rate Calculator",
+      icon: Calculator,
+      description: "Calculate shipping rates",
+      color: "from-orange-500 to-orange-600",
     },
   ];
 
