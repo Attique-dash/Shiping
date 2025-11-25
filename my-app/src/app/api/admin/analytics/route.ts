@@ -7,19 +7,31 @@ import { Payment } from "@/models/Payment";
 import { getAuthFromRequest } from "@/lib/rbac";
 
 export async function GET(req: Request) {
+  console.log('Analytics endpoint called');
   const payload = await getAuthFromRequest(req);
   if (!payload || payload.role !== "admin") {
+    console.log('Unauthorized access attempt');
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  await dbConnect();
+  console.log('Connecting to database...');
+  try {
+    await dbConnect();
+    console.log('Database connected successfully');
+  } catch (error) {
+    console.error('Database connection error:', error);
+    return NextResponse.json({ error: "Database connection error" }, { status: 500 });
+  }
 
   const url = new URL(req.url);
-  const range = url.searchParams.get("range") || "30d";
+  const range = url.searchParams.get("range") || "all";
+  console.log('Date range:', range);
 
   // Calculate date range
   const now = new Date();
-  const startDate = new Date();
+  const startDate = new Date(0); // Start from the beginning of time to get all data
+  
+  console.log('Querying data with start date:', startDate);
   
   switch (range) {
     case "7d":
@@ -44,7 +56,23 @@ export async function GET(req: Request) {
   const previousEnd = new Date(startDate.getTime());
 
   try {
+    // Log collection counts for debugging
+    try {
+      const packageCount = await Package.countDocuments({});
+      const userCount = await User.countDocuments({});
+      const paymentCount = await Payment.countDocuments({});
+      
+      console.log('Collection counts:', {
+        packages: packageCount,
+        users: userCount,
+        payments: paymentCount
+      });
+    } catch (err) {
+      console.error('Error getting collection counts:', err);
+    }
+
     // Current period metrics
+    console.log('Starting analytics queries...');
     const [
       currentPackages,
       previousPackages,
@@ -126,8 +154,29 @@ export async function GET(req: Request) {
       ])
     ]);
 
+    console.log('Analytics query results:', {
+      currentPackages,
+      previousPackages,
+      currentCustomers,
+      previousCustomers,
+      revenueAgg,
+      previousRevenueAgg,
+      packagesByStatus,
+      packagesByBranch,
+      topCustomersData
+    });
+
     const currentRevenue = revenueAgg[0]?.total || 0;
     const previousRevenue = previousRevenueAgg[0]?.total || 0;
+    
+    console.log('Processed values:', {
+      currentRevenue,
+      previousRevenue,
+      currentPackages,
+      previousPackages,
+      currentCustomers,
+      previousCustomers
+    });
 
     // Calculate growth percentages
     const packagesGrowth = previousPackages > 0 
