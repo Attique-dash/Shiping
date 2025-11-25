@@ -27,7 +27,7 @@ export async function GET(req: Request, { params }: { params: { type: string } }
   await dbConnect();
 
   const url = new URL(req.url);
-  const { type } = params;
+  const { type } = await params;
   const start = url.searchParams.get("start"); // ISO date
   const end = url.searchParams.get("end"); // ISO date
   const format = (url.searchParams.get("format") || "json").toLowerCase(); // json|csv

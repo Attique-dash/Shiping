@@ -13,26 +13,6 @@ export const registerSchema = z.object({
   phone: z.string().optional(),
 });
 
-export const adminCreateCustomerSchema = z.object({
-  full_name: z.string().min(2),
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  email: z.string().email(),
-  password: z.string().min(6),
-  phone: z.string().optional(),
-  address: z
-    .object({
-      street: z.string().optional(),
-      city: z.string().optional(),
-      state: z.string().optional(),
-      zip_code: z.string().optional(),
-      country: z.string().optional(),
-    })
-    .optional(),
-  accountStatus: z.enum(["active", "inactive"]).optional(),
-  emailVerified: z.boolean().optional(),
-});
-
 // Package Validation
 export const packageCreateSchema = z.object({
   tracking_number: z.string().min(3).max(50),
