@@ -1,223 +1,342 @@
-import { dbConnect } from "@/lib/db";
-import { Package } from "@/models/Package";
+"use client";
 
-export default async function UnknownPackagesPage() {
-  await dbConnect();
-  const raw = await Package.find({
-    $or: [{ status: "Unknown" }, { customer: { $exists: false } }, { customer: null }],
-  })
-    .sort({ updatedAt: -1 })
-    .limit(500)
-    .lean<{
-      _id: unknown;
-      trackingNumber: string;
-      status: string;
-      userCode: string;
-      updatedAt?: Date | string;
-      description?: string;
-    }[]>();
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, Clock, Filter, Loader2, Package, RefreshCw, Search, User } from "lucide-react";
 
-  const items = raw.map((p) => ({
-    _id: String(p._id),
-    trackingNumber: p.trackingNumber,
-    status: p.status,
-    userCode: p.userCode,
-    description: p.description,
-    updatedAt:
-      typeof p.updatedAt === "string"
-        ? p.updatedAt
-        : p.updatedAt?.toISOString?.() ?? new Date().toISOString(),
-  }));
+type UnknownPackage = {
+  tracking_number: string;
+  user_code: string | null;
+  status: string;
+  description: string | null;
+  created_at: string | null;
+};
+
+type ApiResponse = {
+  packages: UnknownPackage[];
+  total_count: number;
+};
+
+export default function UnknownPackagesPage() {
+  const [items, setItems] = useState<UnknownPackage[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [query, setQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadPackages = async (opts?: { silent?: boolean }) => {
+    if (opts?.silent) {
+      setRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+
+    try {
+      const res = await fetch(`/api/admin/packages/unknown?${params.toString()}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+      const data = (await res.json()) as ApiResponse | { error?: string };
+      if (!res.ok || !("packages" in data)) {
+        throw new Error("error" in data && data.error ? data.error : "Failed to load unknown packages");
+      }
+      setItems(data.packages);
+      setTotalCount(data.total_count);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load unknown packages");
+      setItems([]);
+      setTotalCount(0);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPackages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const stats = useMemo(() => {
+    const unknownStatus = items.filter((i) => i.status === "Unknown").length;
+    const noCustomer = items.filter((i) => !i.user_code || i.user_code === "").length;
+    const recent24h = items.filter((i) => {
+      if (!i.created_at) return false;
+      const diff = Date.now() - new Date(i.created_at).getTime();
+      return diff < 24 * 60 * 60 * 1000;
+    }).length;
+    return { unknownStatus, noCustomer, recent24h };
+  }, [items]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-orange-50">
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header Section */}
-        <div className="mb-8">
-          <div className="bg-gradient-to-r from-[#0f4d8a] to-[#E67919] rounded-2xl shadow-2xl p-8 text-white">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                  </svg>
-                  Unknown Packages
-                </h1>
-                <p className="text-blue-100 text-lg">Packages requiring attention and assignment</p>
-              </div>
-              <div className="bg-white/20 backdrop-blur-sm rounded-xl px-6 py-4 border border-white/30">
-                <div className="text-sm font-medium text-blue-100 mb-1">Total Items</div>
-                <div className="text-4xl font-bold">{items.length}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-[#0f4d8a] hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Unknown Status</p>
-                <p className="text-3xl font-bold text-[#0f4d8a]">
-                  {items.filter(i => i.status === "Unknown").length}
-                </p>
-              </div>
-              <div className="bg-blue-100 p-3 rounded-lg">
-                <svg className="w-8 h-8 text-[#0f4d8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
+    <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-orange-50">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-30"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, rgba(37, 99, 235, 0.12) 1px, transparent 0)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15">
+                  <Package className="h-7 w-7" />
+                </div>
+                <div>
+                  <h1 className="text-3xl font-bold leading-tight md:text-4xl">Unknown Packages</h1>
+                  <p className="mt-1 text-sm text-blue-100">Packages requiring manual review and assignment</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-[#E67919] hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">No Customer</p>
-                <p className="text-3xl font-bold text-[#E67919]">
-                  {items.filter(i => !i.userCode || i.userCode === "").length}
-                </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-2 rounded-xl bg-white/15 px-4 py-2 text-sm">
+                <span className="text-blue-100">Total items</span>
+                <span className="text-xl font-bold">{totalCount}</span>
               </div>
-              <div className="bg-orange-100 p-3 rounded-lg">
-                <svg className="w-8 h-8 text-[#E67919]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-green-500 hover:shadow-xl transition-shadow">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm font-medium mb-1">Recent (24h)</p>
-                <p className="text-3xl font-bold text-green-600">
-                  {items.filter(i => {
-                    const diff = Date.now() - new Date(i.updatedAt).getTime();
-                    return diff < 24 * 60 * 60 * 1000;
-                  }).length}
-                </p>
-              </div>
-              <div className="bg-green-100 p-3 rounded-lg">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Table Section */}
-        <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-          {/* Table Header */}
-          <div className="bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-6 py-4">
-            <h2 className="text-xl font-semibold text-white flex items-center gap-2">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-              Package Details
-            </h2>
-          </div>
-
-          {/* Table Content */}
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50 border-b-2 border-gray-200">
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Tracking Number
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    User Code
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                    Last Updated
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <svg className="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                        </svg>
-                        <p className="text-gray-500 font-medium">No unknown packages found</p>
-                      </div>
-                    </td>
-                  </tr>
+              <button
+                type="button"
+                onClick={() => loadPackages({ silent: true })}
+                disabled={refreshing}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold shadow-lg shadow-orange-900/20 transition hover:bg-white/20 disabled:opacity-60"
+              >
+                {refreshing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  items.map((p, idx) => (
-                    <tr 
-                      key={p._id} 
-                      className="hover:bg-blue-50/50 transition-colors duration-150"
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-[#E67919] rounded-full animate-pulse"></div>
-                          <span className="text-sm font-semibold text-gray-900">{p.trackingNumber}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800 border border-yellow-200">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          {p.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {p.userCode ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-[#0f4d8a]/10 text-[#0f4d8a] border border-[#0f4d8a]/20">
-                            {p.userCode}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium bg-red-100 text-red-700 border border-red-200">
-                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clipRule="evenodd" />
-                            </svg>
-                            Not Assigned
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="text-sm text-gray-600 line-clamp-2">
-                          {p.description || <span className="text-gray-400 italic">No description</span>}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 font-medium">
-                          {new Date(p.updatedAt).toLocaleDateString()}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(p.updatedAt).toLocaleTimeString()}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  <RefreshCw className="h-4 w-4" />
                 )}
-              </tbody>
-            </table>
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters + Stats */}
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row">
+          <div className="flex-1 space-y-3 rounded-2xl bg-white p-4 shadow-md ring-1 ring-gray-100">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      loadPackages();
+                    }
+                  }}
+                  placeholder="Search by tracking number, user code, or description..."
+                  className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm text-gray-900 shadow-sm outline-none ring-0 transition placeholder:text-gray-400 hover:border-gray-300 focus:border-[#0f4d8a] focus:ring-2 focus:ring-[#0f4d8a]/20"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => loadPackages()}
+                className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-100"
+              >
+                <Filter className="h-3 w-3" />
+                Apply search
+              </button>
+            </div>
+            <p className="flex items-center gap-1 text-xs text-gray-500">
+              <Clock className="h-3 w-3" />
+              Showing up to 500 most recent unknown packages from the API.
+            </p>
           </div>
 
-          {/* Footer */}
-          {items.length > 0 && (
-            <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>Showing <span className="font-semibold text-gray-900">{items.length}</span> packages</span>
-                <span className="text-xs">Last updated: {new Date().toLocaleString()}</span>
-              </div>
+          <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+            <StatCard
+              label="Unknown status"
+              value={stats.unknownStatus}
+              description="Status marked as Unknown"
+              tone="blue"
+            />
+            <StatCard
+              label="No customer"
+              value={stats.noCustomer}
+              description="Missing user code"
+              tone="orange"
+            />
+            <StatCard
+              label="New in 24h"
+              value={stats.recent24h}
+              description="Recently created"
+              tone="green"
+            />
+          </div>
+        </div>
+
+        {/* Table / list */}
+        <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200">
+          <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+              <Package className="h-5 w-5 text-[#0f4d8a]" />
+              <span>Unknown package details</span>
             </div>
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Clock className="h-3 w-3" />
+              <span>Last refresh: {new Date().toLocaleTimeString()}</span>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading packages...
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-sm text-red-600">
+              <AlertCircle className="h-6 w-6" />
+              <p>{error}</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center text-sm text-gray-500">
+              <Package className="h-10 w-10 text-gray-300" />
+              <p>No unknown packages found</p>
+              <p className="text-xs text-gray-400">All packages are currently assigned and have valid status.</p>
+            </div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden overflow-x-auto md:block">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                      <th className="px-6 py-3 text-left">Tracking number</th>
+                      <th className="px-6 py-3 text-left">Status</th>
+                      <th className="px-6 py-3 text-left">User code</th>
+                      <th className="px-6 py-3 text-left">Description</th>
+                      <th className="px-6 py-3 text-left">Created at</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {items.map((p) => (
+                      <tr key={p.tracking_number} className="hover:bg-blue-50/40">
+                        <td className="px-6 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-[#E67919]"></span>
+                            <span className="font-semibold text-gray-900">{p.tracking_number}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-3">
+                          <span className="inline-flex items-center rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-800 ring-1 ring-yellow-200">
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-3">
+                          {p.user_code ? (
+                            <span className="inline-flex items-center rounded-lg bg-[#0f4d8a]/10 px-3 py-1 text-xs font-medium text-[#0f4d8a] ring-1 ring-[#0f4d8a]/20">
+                              <User className="mr-1 h-3 w-3" />
+                              {p.user_code}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center rounded-lg bg-red-50 px-3 py-1 text-xs font-medium text-red-700 ring-1 ring-red-200">
+                              Not assigned
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-6 py-3">
+                          <p className="line-clamp-2 text-xs text-gray-700">
+                            {p.description || <span className="italic text-gray-400">No description</span>}
+                          </p>
+                        </td>
+                        <td className="px-6 py-3 text-xs text-gray-700">
+                          {p.created_at ? (
+                            <>
+                              <div>{new Date(p.created_at).toLocaleDateString()}</div>
+                              <div className="text-gray-500">{new Date(p.created_at).toLocaleTimeString()}</div>
+                            </>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <div className="divide-y divide-gray-100 md:hidden">
+                {items.map((p) => (
+                  <div key={p.tracking_number} className="space-y-2 px-4 py-3 sm:px-6">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-[#E67919]"></span>
+                        <span className="text-sm font-semibold text-gray-900">{p.tracking_number}</span>
+                      </div>
+                      <span className="inline-flex items-center rounded-full bg-yellow-50 px-2.5 py-1 text-[11px] font-semibold text-yellow-800 ring-1 ring-yellow-200">
+                        {p.status}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-600">
+                      <div className="flex items-center gap-1">
+                        <User className="h-3 w-3 text-gray-400" />
+                        {p.user_code || <span className="text-red-600">Not assigned</span>}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-gray-400" />
+                        {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-700">
+                      {p.description || <span className="italic text-gray-400">No description</span>}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3 text-xs text-gray-600 sm:px-6">
+                <span>
+                  Showing <span className="font-semibold text-gray-900">{items.length}</span> of{" "}
+                  <span className="font-semibold text-gray-900">{totalCount}</span> packages
+                </span>
+              </div>
+            </>
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+type StatTone = "blue" | "orange" | "green";
+
+function StatCard({
+  label,
+  value,
+  description,
+  tone,
+}: {
+  label: string;
+  value: number;
+  description: string;
+  tone: StatTone;
+}) {
+  const colorMap: Record<StatTone, string> = {
+    blue: "from-blue-500/10 to-blue-500/5 border-blue-500/30 text-blue-700",
+    orange: "from-orange-500/10 to-orange-500/5 border-orange-500/30 text-orange-700",
+    green: "from-emerald-500/10 to-emerald-500/5 border-emerald-500/30 text-emerald-700",
+  };
+
+  return (
+    <div
+      className={`flex flex-col justify-between rounded-2xl border bg-gradient-to-br p-4 text-sm shadow-sm ${colorMap[tone]} backdrop-blur`}
+    >
+      <div>
+        <p className="text-xs font-medium uppercase tracking-wide">{label}</p>
+        <p className="mt-2 text-2xl font-bold">{value}</p>
+      </div>
+      <p className="mt-1 text-xs text-gray-700/80">{description}</p>
     </div>
   );
 }

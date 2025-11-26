@@ -6,6 +6,26 @@ import { User } from "@/models/User";
 import { Payment } from "@/models/Payment";
 import { getAuthFromRequest } from "@/lib/rbac";
 
+function formatTimeAgo(date: Date | string): string {
+  const now = new Date();
+  const past = new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - past.getTime()) / 1000);
+  
+  if (diffInSeconds < 60) return 'just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  return `${Math.floor(diffInSeconds / 86400)} days ago`;
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 export async function GET(req: Request) {
   console.log('Analytics endpoint called');
   const payload = await getAuthFromRequest(req);
@@ -243,6 +263,54 @@ export async function GET(req: Request) {
       revenue: c.packages * 50 // Mock: Replace with actual revenue calculation
     }));
 
+    // Recent Activity - Get recent packages, payments, and customer registrations
+    const [recentPackages, recentPayments, recentCustomers] = await Promise.all([
+      Package.find({ status: { $ne: "Deleted" } })
+        .select("trackingNumber status createdAt")
+        .sort({ createdAt: -1 })
+        .limit(4)
+        .lean(),
+      Payment.find({ status: "captured" })
+        .select("amount createdAt")
+        .sort({ createdAt: -1 })
+        .limit(2)
+        .lean(),
+      User.find({ role: "customer" })
+        .select("firstName lastName createdAt")
+        .sort({ createdAt: -1 })
+        .limit(2)
+        .lean()
+    ]);
+
+    const recentActivity = [
+      ...recentPackages.map((p: any) => ({
+        title: 'New package received',
+        desc: `Package ${p.trackingNumber} has been received`,
+        time: formatTimeAgo(p.createdAt),
+        timestamp: new Date(p.createdAt).getTime(),
+        icon: 'Package',
+        color: 'blue'
+      })),
+      ...recentPayments.map((p: any) => ({
+        title: 'Payment processed',
+        desc: `Payment of ${formatCurrency(p.amount)} received`,
+        time: formatTimeAgo(p.createdAt),
+        timestamp: new Date(p.createdAt).getTime(),
+        icon: 'CreditCard',
+        color: 'green'
+      })),
+      ...recentCustomers.map((c: any) => ({
+        title: 'New customer registered',
+        desc: `${c.firstName || ''} ${c.lastName || ''} joined the platform`.trim(),
+        time: formatTimeAgo(c.createdAt),
+        timestamp: new Date(c.createdAt).getTime(),
+        icon: 'Users',
+        color: 'purple'
+      }))
+    ]
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, 4);
+
     const response = {
       overview: {
         totalRevenue: currentRevenue,
@@ -260,7 +328,8 @@ export async function GET(req: Request) {
       packagesByBranch: packagesByBranch.map(b => ({
         branch: b._id || 'Unknown',
         count: b.count
-      }))
+      })),
+      recentActivity
     };
 
     return NextResponse.json(response);

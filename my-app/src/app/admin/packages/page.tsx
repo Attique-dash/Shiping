@@ -128,7 +128,7 @@ export default async function AdminPackagesPage({
                 <PackageIcon className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-white">Package Management</h1>
+                <h1 className="text-3xl font-bold leading-tight md:text-4xl text-white">Package Management</h1>
                 <p className="mt-1 text-sm text-blue-100">Track and manage all packages</p>
               </div>
             </div>

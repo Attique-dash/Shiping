@@ -1,16 +1,15 @@
-// src/app/admin/page.tsx
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Package, Users, DollarSign, TrendingUp, RefreshCw, AlertCircle,
   Clock, Truck, BarChart3, Calendar, ArrowUpRight, ArrowDownRight, 
-  Activity, ChevronRight, Eye, FileText, Bell, Zap, TrendingDown,
-  ShoppingBag, CreditCard, Layers, PieChart, Download, Filter
+  Activity, ChevronRight, FileText, ShoppingBag, CreditCard, 
+  Download, Filter, CheckCircle2, Warehouse
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
-// Dynamically import charts for better performance
+// Dynamically import charts
 const RevenueChart = dynamic(
   () => import('@/components/charts/RevenueChart').then(mod => mod.RevenueChart),
   { 
@@ -65,9 +64,19 @@ interface DashboardStats {
     branch: string;
     count: number;
   }>;
+  recentActivity?: Array<{
+    title?: string;
+    desc?: string;
+    time?: string;
+    action?: string;
+    description?: string;
+    timestamp?: string;
+    icon?: any;
+    color?: string;
+  }>;
 }
 
-const AdminDashboard = () => {
+export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -112,6 +121,7 @@ const AdminDashboard = () => {
     fetchStats();
     const interval = setInterval(fetchStats, 300000); // Refresh every 5 minutes
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeRange]);
 
   const formatCurrency = (amount: number) => {
@@ -131,17 +141,24 @@ const AdminDashboard = () => {
     return <ErrorState error={error} onRetry={fetchStats} />;
   }
 
+  const statusConfig: Record<string, { color: string; icon: any }> = {
+    'At Warehouse': { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: Warehouse },
+    'In Transit': { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: Truck },
+    'Delivered': { color: 'bg-purple-100 text-purple-700 border-purple-200', icon: CheckCircle2 },
+    'Ready for Pickup': { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       {/* Animated Background Pattern */}
-      <div className="fixed inset-0 z-0 opacity-30">
+      <div className="fixed inset-0 z-0 opacity-30 pointer-events-none">
         <div className="absolute inset-0" style={{
           backgroundImage: 'radial-gradient(circle at 1px 1px, rgb(99 102 241 / 0.15) 1px, transparent 0)',
           backgroundSize: '40px 40px'
         }}></div>
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 p-4 md:p-6 lg:p-8">
         {/* Header Section */}
         <div className="mb-8 animate-fadeIn">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
@@ -262,97 +279,171 @@ const AdminDashboard = () => {
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - 2/3 width */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Revenue Chart Card */}
-            <div className="group overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 transition-all hover:shadow-2xl">
-              <div className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Revenue Overview</h3>
-                    <p className="mt-1 text-sm text-gray-600">Monthly performance tracking</p>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-3 w-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></span>
-                      <span className="text-gray-700">Revenue</span>
+            {/* Tab Content */}
+            {activeTab === 'overview' && (
+              <>
+                {/* Revenue Chart Card */}
+                <div className="group overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 transition-all hover:shadow-2xl">
+                  <div className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">Revenue Overview</h3>
+                        <p className="mt-1 text-sm text-gray-600">Monthly performance tracking</p>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-3 w-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/50"></span>
+                          <span className="text-gray-700">Revenue</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-3 w-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></span>
+                          <span className="text-gray-700">Packages</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="flex h-3 w-3 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50"></span>
-                      <span className="text-gray-700">Packages</span>
+                  </div>
+                  <div className="p-6">
+                    <div className="h-80">
+                      <RevenueChart data={stats?.revenueByMonth || []} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Actions Grid */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <QuickActionCard
+                    title="New Package"
+                    description="Add package to system"
+                    icon={<Package className="h-5 w-5" />}
+                    color="blue"
+                    onClick={() => router.push('/admin/packages')}
+                  />
+                  <QuickActionCard
+                    title="Generate Invoice"
+                    description="Create new invoice"
+                    icon={<FileText className="h-5 w-5" />}
+                    color="purple"
+                    onClick={() => router.push('/admin/invoices/generator')}
+                  />
+                </div>
+
+                {/* Recent Activity Card */}
+                <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200">
+                  <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50 p-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-gray-900">Recent Activity</h3>
+                      <button 
+                        onClick={() => router.push('/admin/reporting')}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center"
+                      >
+                        View All
+                        <ChevronRight className="ml-1 h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {stats?.recentActivity && stats.recentActivity.length > 0 ? (
+                      stats.recentActivity.map((activity: any, index: number) => (
+                        <ActivityItem 
+                          key={index} 
+                          title={activity.title || activity.action || 'Activity'}
+                          desc={activity.desc || activity.description || ''}
+                          time={activity.time || activity.timestamp || ''}
+                          icon={activity.icon || Package}
+                          color={activity.color || 'blue'}
+                        />
+                      ))
+                    ) : (
+                      <div className="p-8 text-center text-gray-500">
+                        <Activity className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                        <p>No recent activity</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {activeTab === 'revenue' && (
+              <div className="group overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 transition-all hover:shadow-2xl">
+                <div className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Revenue Analytics</h3>
+                      <p className="mt-1 text-sm text-gray-600">Revenue breakdown by month</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="h-80">
+                    <RevenueChart data={stats?.revenueByMonth || []} />
+                  </div>
+                  <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Total Revenue</p>
+                      <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.overview.totalRevenue || 0)}</p>
+                    </div>
+                    <div className="p-4 bg-emerald-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Avg. Order Value</p>
+                      <p className="text-2xl font-bold text-gray-900">{formatCurrency(stats?.overview.averageValue || 0)}</p>
+                    </div>
+                    <div className="p-4 bg-purple-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Growth</p>
+                      <p className="text-2xl font-bold text-gray-900">{stats?.overview.revenueGrowth?.toFixed(1) || '0'}%</p>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="p-6">
-                <div className="h-80">
-                  <RevenueChart data={stats?.revenueByMonth || []} />
+            )}
+
+            {activeTab === 'customers' && (
+              <div className="group overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200 transition-all hover:shadow-2xl">
+                <div className="border-b border-gray-100 bg-gradient-to-r from-purple-50 to-pink-50 p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">Customer Analytics</h3>
+                      <p className="mt-1 text-sm text-gray-600">Customer insights and statistics</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="p-6 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-2">Total Customers</p>
+                      <p className="text-4xl font-bold text-gray-900">{stats?.overview.totalCustomers.toLocaleString() || '0'}</p>
+                      <p className="text-sm text-gray-500 mt-2">Growth: {stats?.overview.customersGrowth?.toFixed(1) || '0'}%</p>
+                    </div>
+                    <div className="p-6 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl">
+                      <p className="text-sm text-gray-600 mb-2">Top Customers</p>
+                      <p className="text-4xl font-bold text-gray-900">{stats?.topCustomers?.length || 0}</p>
+                      <p className="text-sm text-gray-500 mt-2">Highest revenue generators</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">Top Customers by Revenue</h4>
+                    {stats?.topCustomers && stats.topCustomers.length > 0 ? (
+                      stats.topCustomers.slice(0, 5).map((customer, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 text-white font-bold">
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900">{customer.name}</p>
+                              <p className="text-sm text-gray-500">{customer.packages} packages</p>
+                            </div>
+                          </div>
+                          <p className="font-bold text-emerald-600">{formatCurrency(customer.revenue)}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 py-8">No customer data available</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* Quick Actions Grid */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <QuickActionCard
-                title="New Package"
-                description="Add package to system"
-                icon={<Package className="h-5 w-5" />}
-                color="blue"
-                onClick={() => router.push('/admin/packages')}
-              />
-              <QuickActionCard
-                title="Generate Invoice"
-                description="Create new invoice"
-                icon={<FileText className="h-5 w-5" />}
-                color="purple"
-                onClick={() => router.push('/admin/invoices/generate')}
-              />
-            </div>
-
-            {/* Recent Activity Card */}
-            <div className="overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-gray-200">
-              <div className="border-b border-gray-100 bg-gradient-to-r from-gray-50 to-blue-50 p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-gray-900">Recent Activity</h3>
-                  <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                    View All
-                    <ChevronRight className="ml-1 inline h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="divide-y divide-gray-100">
-                {[
-                  { 
-                    title: 'New package received', 
-                    desc: 'Package #TRK-1001 has been received at warehouse', 
-                    time: '2 hours ago',
-                    icon: Package,
-                    color: 'blue'
-                  },
-                  { 
-                    title: 'Payment processed', 
-                    desc: 'Payment of $250.00 received from John Doe', 
-                    time: '4 hours ago',
-                    icon: CreditCard,
-                    color: 'green'
-                  },
-                  { 
-                    title: 'New customer registered', 
-                    desc: 'Sarah Johnson joined the platform', 
-                    time: '5 hours ago',
-                    icon: Users,
-                    color: 'purple'
-                  },
-                  { 
-                    title: 'Invoice generated', 
-                    desc: 'Invoice #INV-2024-001 created', 
-                    time: '6 hours ago',
-                    icon: FileText,
-                    color: 'orange'
-                  },
-                ].map((activity, index) => (
-                  <ActivityItem key={index} {...activity} />
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Right Column - 1/3 width */}
@@ -366,7 +457,7 @@ const AdminDashboard = () => {
                     <p className="mt-1 text-sm text-gray-600">Current distribution</p>
                   </div>
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-600 shadow-lg">
-                    <PieChart className="h-5 w-5 text-white" />
+                    <BarChart3 className="h-5 w-5 text-white" />
                   </div>
                 </div>
               </div>
@@ -443,13 +534,13 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-2 gap-4">
               <MiniStatCard
                 label="In Transit"
-                value="48"
+                value={stats?.packagesByStatus?.find((s: any) => s.status === 'In Transit')?.count?.toString() || '0'}
                 icon={<Truck className="h-4 w-4" />}
                 color="blue"
               />
               <MiniStatCard
                 label="Delivered"
-                value="234"
+                value={stats?.packagesByStatus?.find((s: any) => s.status === 'Delivered')?.count?.toString() || '0'}
                 icon={<Package className="h-4 w-4" />}
                 color="green"
               />
@@ -459,10 +550,9 @@ const AdminDashboard = () => {
       </div>
     </div>
   );
-};
+}
 
-// ============ Helper Components ============
-
+// Helper Components
 const LoadingState = () => (
   <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
     <div className="text-center">
@@ -502,7 +592,6 @@ const StatCard = ({ title, value, change, icon, gradient, trend }: any) => {
 
   return (
     <div className="group relative overflow-hidden rounded-2xl bg-white p-6 shadow-xl ring-1 ring-gray-200 transition-all hover:shadow-2xl hover:-translate-y-1">
-      {/* Gradient Background */}
       <div className={`absolute right-0 top-0 h-32 w-32 rounded-full bg-gradient-to-br ${gradient} opacity-10 blur-3xl transition-all group-hover:opacity-20`}></div>
       
       <div className="relative">
@@ -528,17 +617,45 @@ const StatCard = ({ title, value, change, icon, gradient, trend }: any) => {
 };
 
 const ActivityItem = ({ title, desc, time, icon: Icon, color }: any) => {
-  const colorClasses = {
+  const router = useRouter();
+  const colorClasses: Record<string, string> = {
     blue: 'from-blue-500 to-cyan-600',
     green: 'from-emerald-500 to-teal-600',
     purple: 'from-purple-500 to-pink-600',
     orange: 'from-orange-500 to-red-600',
   };
 
+  // Map icon strings to components
+  const iconMap: Record<string, any> = {
+    Package,
+    CreditCard,
+    Users,
+    FileText,
+  };
+
+  const IconComponent = typeof Icon === 'string' ? iconMap[Icon] || Package : Icon;
+
+  const handleClick = () => {
+    if (title?.toLowerCase().includes('package')) {
+      router.push('/admin/packages');
+    } else if (title?.toLowerCase().includes('payment')) {
+      router.push('/admin/transactions');
+    } else if (title?.toLowerCase().includes('customer')) {
+      router.push('/admin/customers');
+    } else if (title?.toLowerCase().includes('invoice')) {
+      router.push('/admin/invoices');
+    } else {
+      router.push('/admin/reporting');
+    }
+  };
+
   return (
-    <div className="flex items-start gap-4 p-4 transition-all hover:bg-gray-50">
-      <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} shadow-lg`}>
-        <Icon className="h-5 w-5 text-white" />
+    <button 
+      onClick={handleClick}
+      className="flex items-start gap-4 p-4 transition-all hover:bg-gray-50 w-full text-left"
+    >
+      <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${colorClasses[color] || colorClasses.blue} shadow-lg`}>
+        <IconComponent className="h-5 w-5 text-white" />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-gray-900">{title}</p>
@@ -548,15 +665,15 @@ const ActivityItem = ({ title, desc, time, icon: Icon, color }: any) => {
           {time}
         </p>
       </div>
-      <button className="flex-shrink-0 text-gray-400 hover:text-gray-600">
+      <div className="flex-shrink-0 text-gray-400">
         <ChevronRight className="h-5 w-5" />
-      </button>
-    </div>
+      </div>
+    </button>
   );
 };
 
 const QuickActionCard = ({ title, description, icon, color, onClick }: any) => {
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'from-blue-500 to-cyan-600',
     purple: 'from-purple-500 to-pink-600',
   };
@@ -566,9 +683,9 @@ const QuickActionCard = ({ title, description, icon, color, onClick }: any) => {
       onClick={onClick}
       className="group relative overflow-hidden rounded-xl bg-white p-6 text-left shadow-lg ring-1 ring-gray-200 transition-all hover:shadow-2xl hover:-translate-y-1"
     >
-      <div className={`absolute right-0 top-0 h-24 w-24 rounded-full bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} opacity-10 blur-2xl transition-all group-hover:opacity-20`}></div>
+      <div className={`absolute right-0 top-0 h-24 w-24 rounded-full bg-gradient-to-br ${colorClasses[color]} opacity-10 blur-2xl transition-all group-hover:opacity-20`}></div>
       <div className="relative">
-        <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} shadow-lg transition-transform group-hover:scale-110`}>
+        <div className={`mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br ${colorClasses[color]} shadow-lg transition-transform group-hover:scale-110`}>
           <div className="text-white">{icon}</div>
         </div>
         <h4 className="font-bold text-gray-900">{title}</h4>
@@ -580,7 +697,7 @@ const QuickActionCard = ({ title, description, icon, color, onClick }: any) => {
 };
 
 const MiniStatCard = ({ label, value, icon, color }: any) => {
-  const colorClasses = {
+  const colorClasses: Record<string, string> = {
     blue: 'from-blue-500 to-cyan-600',
     green: 'from-emerald-500 to-teal-600',
   };
@@ -588,7 +705,7 @@ const MiniStatCard = ({ label, value, icon, color }: any) => {
   return (
     <div className="rounded-xl bg-white p-4 shadow-lg ring-1 ring-gray-200">
       <div className="flex items-center justify-between">
-        <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${colorClasses[color as keyof typeof colorClasses]} shadow-lg`}>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br ${colorClasses[color]} shadow-lg`}>
           <div className="text-white">{icon}</div>
         </div>
         <p className="text-2xl font-bold text-gray-900">{value}</p>
@@ -596,6 +713,4 @@ const MiniStatCard = ({ label, value, icon, color }: any) => {
       <p className="mt-2 text-sm font-medium text-gray-600">{label}</p>
     </div>
   );
-};
-
-export default AdminDashboard;
+}
