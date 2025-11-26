@@ -114,28 +114,38 @@ export default function RateCalculatorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-orange-50/20 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-[#0f4d8a] to-[#E67919] bg-clip-text text-transparent">
-              Rate Calculator
-            </h1>
-            <p className="text-slate-600 mt-1">Manage shipping rates and calculate costs</p>
+        {/* Header Section */}
+        <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl mb-8">
+          <div className="absolute inset-0 bg-white/10" />
+
+          <div className="relative flex flex-col gap-6">
+            
+            {/* Top Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-200">
+                  Rate Calculator
+                </h1>
+                <p className="mt-1 text-sm text-blue-100">
+                  Manage shipping rates and calculate costs
+                </p>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setEditing(null);
+                  setShowForm(true);
+                }}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-md backdrop-blur transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95"
+              >
+                <Plus className="h-5 w-5" />
+                Add Pricing Rule
+              </button>
+            </div>
           </div>
-          
-          <button 
-            onClick={() => {
-              setEditing(null);
-              setShowForm(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#E67919] text-white font-medium hover:shadow-lg transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Add Pricing Rule
-          </button>
-        </div>
+        </header>
 
         {/* Quick Calculator */}
         <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">

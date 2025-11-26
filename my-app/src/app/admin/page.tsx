@@ -8,6 +8,7 @@ import {
   Download, Filter, CheckCircle2, Warehouse
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { AdminLoading } from "@/components/admin/AdminLoading";
 
 // Dynamically import charts
 const RevenueChart = dynamic(
@@ -553,20 +554,7 @@ export default function AdminDashboard() {
 }
 
 // Helper Components
-const LoadingState = () => (
-  <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
-    <div className="text-center">
-      <div className="relative mx-auto h-24 w-24">
-        <div className="absolute inset-0 animate-ping rounded-full bg-blue-400 opacity-75"></div>
-        <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 shadow-2xl">
-          <BarChart3 className="h-10 w-10 text-white animate-pulse" />
-        </div>
-      </div>
-      <p className="mt-6 text-xl font-semibold text-gray-700">Loading Dashboard...</p>
-      <p className="mt-2 text-sm text-gray-500">Fetching your data</p>
-    </div>
-  </div>
-);
+const LoadingState = () => <AdminLoading message="Loading Dashboard..." fullScreen />;
 
 const ErrorState = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
   <div className="flex h-screen items-center justify-center bg-gradient-to-br from-gray-50 via-red-50 to-orange-50 p-4">

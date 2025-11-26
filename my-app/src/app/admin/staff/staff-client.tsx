@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AdminLoading } from "@/components/admin/AdminLoading";
 
 type Staff = {
   _id: string;
@@ -107,72 +108,86 @@ export default function StaffPageClient() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-orange-50/20 p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
-        {/* Header Section */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-[#0f4d8a] to-[#E67919] bg-clip-text text-transparent">
-              Warehouse Staff
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">Manage your warehouse team members</p>
-          </div>
-          <button
-            onClick={openAdd}
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Add Staff Member
-          </button>
+      <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl mb-8">
+  {/* Soft overlay */}
+  <div className="absolute inset-0 bg-white/10" />
+
+  {/* Main Layout */}
+  <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+    {/* Left Side */}
+    <div>
+      <h1 className="text-3xl font-bold bg-gradient-to-r text-white  bg-clip-text text-transparent">
+        Staff Management
+      </h1>
+      <p className="mt-1 text-sm text-blue-100">
+        Manage your warehouse team members
+      </p>
+    </div>
+
+    {/* Add Button */}
+    <button
+      onClick={openAdd}
+      className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95"
+    >
+      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+      </svg>
+      Add Staff Member
+    </button>
+  </div>
+
+  {/* Stats Cards inside Header */}
+  <div className="relative mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {/* Total Staff */}
+    <div className="group relative overflow-hidden rounded-xl bg-white/10 backdrop-blur p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
+      <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
+      <div className="relative flex items-center gap-4">
+        <div className="rounded-lg bg-white/20 p-3">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
         </div>
-
-        {/* Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#0f4d8a] to-[#0f4d8a]/80 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="rounded-lg bg-white/20 p-3">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-blue-100">Total Staff</p>
-                <p className="mt-1 text-3xl font-bold">{items.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#E67919] to-[#E67919]/80 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="rounded-lg bg-white/20 p-3">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-orange-100">Branches</p>
-                <p className="mt-1 text-3xl font-bold">{branches.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative flex items-center gap-4">
-              <div className="rounded-lg bg-white/20 p-3">
-                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-purple-100">Active Today</p>
-                <p className="mt-1 text-3xl font-bold">{items.length}</p>
-              </div>
-            </div>
-          </div>
+        <div>
+          <p className="text-sm font-medium text-blue-100">Total Staff</p>
+          <p className="mt-1 text-3xl font-bold">{items.length}</p>
         </div>
+      </div>
+    </div>
+
+    {/* Branches */}
+    <div className="group relative overflow-hidden rounded-xl bg-white/10 backdrop-blur p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
+      <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
+      <div className="relative flex items-center gap-4">
+        <div className="rounded-lg bg-white/20 p-3">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-blue-100">Branches</p>
+          <p className="mt-1 text-3xl font-bold">{branches.length}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Active Today */}
+    <div className="group relative overflow-hidden rounded-xl bg-white/10 backdrop-blur p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
+      <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
+      <div className="relative flex items-center gap-4">
+        <div className="rounded-lg bg-white/20 p-3">
+          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+          </svg>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-blue-100">Active Today</p>
+          <p className="mt-1 text-3xl font-bold">{items.length}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
 
         {/* Search Bar */}
         <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-lg">
@@ -205,9 +220,8 @@ export default function StaffPageClient() {
         {/* Staff Cards */}
         <div className="grid gap-4 lg:grid-cols-2">
           {loading ? (
-            <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-12 text-center shadow-lg">
-              <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-[#0f4d8a]"></div>
-              <p className="mt-4 text-sm text-gray-600">Loading staff members...</p>
+            <div className="lg:col-span-2">
+              <AdminLoading message="Loading staff members..." />
             </div>
           ) : filtered.length === 0 ? (
             <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-12 text-center shadow-lg">

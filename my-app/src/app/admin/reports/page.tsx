@@ -173,12 +173,7 @@ export default function AdminReportsPage() {
         )}
 
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="text-center space-y-4">
-              <RefreshCw className="w-12 h-12 text-[#0f4d8a] animate-spin mx-auto" />
-              <p className="text-slate-600 font-medium">Loading reports...</p>
-            </div>
-          </div>
+          <AdminLoading message="Loading reports..." />
         ) : report ? (
           <>
             {/* Summary Stats */}

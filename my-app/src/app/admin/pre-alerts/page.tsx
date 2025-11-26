@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function PreAlertsPage() {
   // Build absolute base URL for server runtime
-  const h = headers();
+  const h = await headers();
   const host = h.get("x-forwarded-host") || h.get("host") || "localhost:3000";
   const proto = h.get("x-forwarded-proto") || "http";
   const base = `${proto}://${host}`;
@@ -37,66 +37,66 @@ export default async function PreAlertsPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-orange-50/20 p-4 md:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header Section */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-[#0f4d8a] to-[#E67919] bg-clip-text text-transparent">
-              Pre-Alerts Dashboard
-            </h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Monitor incoming shipment notifications in real-time
-            </p>
-          </div>
-          <Link 
-            href="/admin" 
-            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Back to Dashboard
-          </Link>
+        {/* Invoice-Style Header */}
+<header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl">
+  <div className="absolute inset-0 bg-white/10" />
+
+  <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+    {/* Left Section */}
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-4">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h18v4H3V3zm0 6h18v4H3V9zm0 6h18v4H3v-4z" />
+          </svg>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#0f4d8a] to-[#0f4d8a]/80 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative">
-              <p className="text-sm font-medium text-blue-100">Total Pre-Alerts</p>
-              <p className="mt-2 text-3xl font-bold">{data.length}</p>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#E67919] to-[#E67919]/80 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative">
-              <p className="text-sm font-medium text-orange-100">In Transit</p>
-              <p className="mt-2 text-3xl font-bold">
-                {data.filter(p => p.status?.toLowerCase().includes("transit")).length}
-              </p>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-green-500 to-green-600 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative">
-              <p className="text-sm font-medium text-green-100">Delivered</p>
-              <p className="mt-2 text-3xl font-bold">
-                {data.filter(p => p.status?.toLowerCase().includes("delivered")).length}
-              </p>
-            </div>
-          </div>
-
-          <div className="group relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-500 to-yellow-600 p-6 text-white shadow-lg transition-all hover:shadow-xl hover:scale-105">
-            <div className="absolute right-0 top-0 h-24 w-24 translate-x-8 -translate-y-8 rounded-full bg-white/10"></div>
-            <div className="relative">
-              <p className="text-sm font-medium text-yellow-100">Pending</p>
-              <p className="mt-2 text-3xl font-bold">
-                {data.filter(p => p.status?.toLowerCase().includes("pending")).length}
-              </p>
-            </div>
-          </div>
+        <div>
+          <p className="text-sm uppercase tracking-widest text-blue-100">
+            Shipment Notifications
+          </p>
+          <h1 className="text-3xl font-bold leading-tight md:text-4xl">
+            Pre-Alerts Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-blue-100">
+            Monitor incoming shipment notifications in real-time
+          </p>
         </div>
+      </div>
+
+      {/* Info Badges */}
+      <div className="flex flex-wrap gap-3 text-xs text-blue-100">
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+          Total: <strong>{data.length}</strong>
+        </span>
+
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+          In Transit: <strong>{data.filter(p => p.status?.toLowerCase().includes("transit")).length}</strong>
+        </span>
+
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+          Delivered: <strong>{data.filter(p => p.status?.toLowerCase().includes("delivered")).length}</strong>
+        </span>
+
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+          Pending: <strong>{data.filter(p => p.status?.toLowerCase().includes("pending")).length}</strong>
+        </span>
+      </div>
+    </div>
+
+    {/* Right Button */}
+    <Link
+      href="/admin"
+      className="flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95 backdrop-blur"
+    >
+      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+      </svg>
+      Back to Dashboard
+    </Link>
+  </div>
+</header>
+
 
         {/* Main Table Card */}
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-xl">

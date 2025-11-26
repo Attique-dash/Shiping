@@ -22,7 +22,8 @@ import {
   Menu,
   X,
   FileText,
-  Calculator
+  Calculator,
+  UserCircle
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -138,6 +139,13 @@ export default function AdminLayout({
       icon: Calculator,
       description: "Calculate shipping rates",
       color: "from-orange-500 to-orange-600",
+    },
+    {
+      href: "/admin/profile",
+      label: "Profile",
+      icon: UserCircle,
+      description: "Manage your profile and password",
+      color: "from-indigo-500 to-indigo-600",
     },
   ];
 

@@ -122,58 +122,97 @@ export default function ReceivalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-orange-50/20 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#0f4d8a] to-[#E67919] bg-clip-text text-transparent">
-            Receivals Management
-          </h1>
-          <p className="text-slate-600">Track and manage inventory receivals from warehouses to branches</p>
-        </div>
+        {/* Header Section */}
+        <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl mb-8">
+          <div className="absolute inset-0 bg-white/10" />
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white rounded-xl p-5 shadow-md border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <Package className="w-8 h-8 text-[#0f4d8a]" />
+          <div className="relative flex flex-col gap-6">
+            
+            {/* Top Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-200">
+                  Receivals Management
+                </h1>
+                <p className="mt-1 text-sm text-blue-100">
+                  Track and manage inventory receivals from warehouses to branches
+                </p>
+              </div>
             </div>
-            <p className="text-sm text-slate-600 font-medium">Total Receivals</p>
-            <p className="text-3xl font-bold text-[#0f4d8a] mt-1">{stats.total}</p>
-          </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <CheckCircle className="w-8 h-8 text-green-600" />
-            </div>
-            <p className="text-sm text-slate-600 font-medium">Received</p>
-            <p className="text-3xl font-bold text-green-600 mt-1">{stats.received}</p>
-          </div>
+            {/* Stats Cards inside header */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
 
-          <div className="bg-white rounded-xl p-5 shadow-md border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <Truck className="w-8 h-8 text-blue-600" />
-            </div>
-            <p className="text-sm text-slate-600 font-medium">In Transit</p>
-            <p className="text-3xl font-bold text-blue-600 mt-1">{stats.inTransit}</p>
-          </div>
+              {/* Total Receivals */}
+              <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-100">Total Receivals</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.total}</p>
+                  </div>
+                </div>
+              </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <Clock className="w-8 h-8 text-yellow-600" />
-            </div>
-            <p className="text-sm text-slate-600 font-medium">Pending</p>
-            <p className="text-3xl font-bold text-yellow-600 mt-1">{stats.pending}</p>
-          </div>
+              {/* Received */}
+              <div className="group relative overflow-hidden rounded-xl bg-green-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <CheckCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-100">Received</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.received}</p>
+                  </div>
+                </div>
+              </div>
 
-          <div className="bg-white rounded-xl p-5 shadow-md border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <AlertCircle className="w-8 h-8 text-red-600" />
+              {/* In Transit */}
+              <div className="group relative overflow-hidden rounded-xl bg-blue-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <Truck className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-100">In Transit</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.inTransit}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Pending */}
+              <div className="group relative overflow-hidden rounded-xl bg-orange-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <Clock className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-orange-100">Pending</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.pending}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Delayed */}
+              <div className="group relative overflow-hidden rounded-xl bg-red-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <AlertCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-red-100">Delayed</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.delayed}</p>
+                  </div>
+                </div>
+              </div>
+
             </div>
-            <p className="text-sm text-slate-600 font-medium">Delayed</p>
-            <p className="text-3xl font-bold text-red-600 mt-1">{stats.delayed}</p>
           </div>
-        </div>
+        </header>
 
         {/* Search and Filter */}
         <div className="bg-white rounded-xl shadow-md border border-slate-200 p-5">

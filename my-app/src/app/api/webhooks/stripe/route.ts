@@ -8,7 +8,8 @@ import { User } from "@/models/User";
 import { sendPaymentReceiptEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
-  const sig = headers().get("stripe-signature");
+  const h = await headers();
+  const sig = h.get("stripe-signature");
   if (!sig) return NextResponse.json({ error: "Missing signature" }, { status: 400 });
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;

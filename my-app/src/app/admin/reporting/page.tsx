@@ -14,6 +14,7 @@ import {
   Activity,
   RefreshCw
 } from "lucide-react";
+import { AdminLoading } from "@/components/admin/AdminLoading";
 
 type AnalyticsData = {
   overview: {
@@ -57,80 +58,127 @@ export default function AnalyticsDashboard() {
   }, [timeRange]);
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <RefreshCw className="w-12 h-12 animate-spin text-[#0f4d8a]" />
-      </div>
-    );
+    return <AdminLoading message="Loading analytics..." fullScreen />;
   }
 
   if (!data) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-orange-50/20 p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-[#0f4d8a] to-[#E67919] bg-clip-text text-transparent">
-              Analytics Dashboard
-            </h1>
-            <p className="text-slate-600 mt-1">Detailed business insights and performance metrics</p>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <select 
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#0f4d8a]"
-            >
-              <option value="7d">Last 7 Days</option>
-              <option value="30d">Last 30 Days</option>
-              <option value="90d">Last 90 Days</option>
-              <option value="1y">Last Year</option>
-            </select>
-            
-            <button 
-              onClick={loadData}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
-          </div>
-        </div>
+        {/* Header Section */}
+        <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl mb-8">
+          <div className="absolute inset-0 bg-white/10" />
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <MetricCard
-            title="Total Revenue"
-            value={`$${data.overview.totalRevenue.toLocaleString()}`}
-            growth={data.overview.revenueGrowth}
-            icon={DollarSign}
-            color="from-green-500 to-green-600"
-          />
-          <MetricCard
-            title="Total Packages"
-            value={data.overview.totalPackages.toLocaleString()}
-            growth={data.overview.packagesGrowth}
-            icon={Package}
-            color="from-[#0f4d8a] to-blue-600"
-          />
-          <MetricCard
-            title="Total Customers"
-            value={data.overview.totalCustomers.toLocaleString()}
-            growth={data.overview.customersGrowth}
-            icon={Users}
-            color="from-[#E67919] to-orange-600"
-          />
-          <MetricCard
-            title="Average Order Value"
-            value={`$${data.overview.averageValue.toFixed(2)}`}
-            growth={data.overview.valueGrowth}
-            icon={TrendingUp}
-            color="from-purple-500 to-purple-600"
-          />
-        </div>
+          <div className="relative flex flex-col gap-6">
+            
+            {/* Top Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-200">
+                  Analytics Dashboard
+                </h1>
+                <p className="mt-1 text-sm text-blue-100">
+                  Detailed business insights and performance metrics
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <select 
+                  value={timeRange}
+                  onChange={(e) => setTimeRange(e.target.value)}
+                  className="px-4 py-2 rounded-lg border border-white/20 bg-white/10 text-white focus:outline-none focus:ring-2 focus:ring-white/30 backdrop-blur"
+                >
+                  <option value="7d" className="text-gray-900">Last 7 Days</option>
+                  <option value="30d" className="text-gray-900">Last 30 Days</option>
+                  <option value="90d" className="text-gray-900">Last 90 Days</option>
+                  <option value="1y" className="text-gray-900">Last Year</option>
+                </select>
+                
+                <button 
+                  onClick={loadData}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-md backdrop-blur transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95"
+                >
+                  <RefreshCw className="h-5 w-5" />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {/* Stats Cards inside header */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+              {/* Total Revenue */}
+              <div className="group relative overflow-hidden rounded-xl bg-green-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-100">Total Revenue</p>
+                    <p className="mt-1 text-2xl font-bold">${data.overview.totalRevenue.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1 text-xs mt-1 ${data.overview.revenueGrowth >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                      {data.overview.revenueGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                      {Math.abs(data.overview.revenueGrowth)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Packages */}
+              <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-100">Total Packages</p>
+                    <p className="mt-1 text-2xl font-bold">{data.overview.totalPackages.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1 text-xs mt-1 ${data.overview.packagesGrowth >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                      {data.overview.packagesGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                      {Math.abs(data.overview.packagesGrowth)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Customers */}
+              <div className="group relative overflow-hidden rounded-xl bg-orange-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-orange-100">Total Customers</p>
+                    <p className="mt-1 text-2xl font-bold">{data.overview.totalCustomers.toLocaleString()}</p>
+                    <div className={`flex items-center gap-1 text-xs mt-1 ${data.overview.customersGrowth >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                      {data.overview.customersGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                      {Math.abs(data.overview.customersGrowth)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Average Order Value */}
+              <div className="group relative overflow-hidden rounded-xl bg-purple-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <TrendingUp className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-purple-100">Avg Order Value</p>
+                    <p className="mt-1 text-2xl font-bold">${data.overview.averageValue.toFixed(2)}</p>
+                    <div className={`flex items-center gap-1 text-xs mt-1 ${data.overview.valueGrowth >= 0 ? 'text-green-200' : 'text-red-200'}`}>
+                      {data.overview.valueGrowth >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                      {Math.abs(data.overview.valueGrowth)}%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </header>
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -18,6 +18,7 @@ import {
   Search,
   User,
 } from "lucide-react";
+import { AdminLoading } from "@/components/admin/AdminLoading";
 
 type Invoice = {
   _id: string;
@@ -309,9 +310,8 @@ export default function AdminInvoicesPage() {
 
           <div className="overflow-hidden rounded-2xl border border-gray-100">
             {isLoading ? (
-              <div className="flex items-center justify-center gap-2 py-16 text-sm text-gray-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading invoices...
+              <div className="py-16">
+                <AdminLoading message="Loading invoices..." />
               </div>
             ) : error ? (
               <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-sm text-red-600">
