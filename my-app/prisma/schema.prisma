@@ -206,6 +206,7 @@ model Package {
   manifest          Manifest? @relation(fields: [manifestId], references: [id])
   audits            Audit[]
   postTransactions  PostTransaction[]
+  bills             Bill[]
 
   // Indexes
   @@index([status])
@@ -271,6 +272,34 @@ model PostTransaction {
   package         Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
 
   @@map("posttransactions")
+}
+
+// Bill model - for billing and invoicing
+model Bill {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  packageId       String   @db.ObjectId
+  trackingNumber  String
+  billNumber      String   @unique
+  date            DateTime
+  branch          String
+  dueAmount       Float
+  paidAmount      Float    @default(0)
+  balance         Float
+  currency        String   @default("JMD")
+  status          String   @default("unpaid") // 'unpaid', 'paid', 'partial'
+  paymentMethod   String?  // 'card', 'cash', 'paypal', 'bank_transfer'
+  paymentDate     DateTime?
+  paymentDetails  Json?    // Payment gateway response
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  package         Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([trackingNumber])
+  @@index([status])
+  @@index([date])
+  @@map("bills")
 }
 
 // PreAlert model - for advance shipment notifications

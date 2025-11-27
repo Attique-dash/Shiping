@@ -23,7 +23,8 @@ import {
   X,
   FileText,
   Calculator,
-  UserCircle
+  UserCircle,
+  Receipt
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -61,7 +62,7 @@ export default function AdminLayout({
       label: "Packages",
       icon: Package,
       description: "Manage all system packages",
-      color: "from-purple-500 to-purple-600",
+      color: "from-indigo-500 to-indigo-600",
     },
     {
       href: "/admin/unknown-packages",
@@ -113,11 +114,18 @@ export default function AdminLayout({
       color: "from-teal-500 to-teal-600",
     },
     {
+      href: "/admin/bills",
+      label: "Bills",
+      icon: Receipt,
+      description: "Billing and invoice management",
+      color: "from-indigo-400 to-indigo-600",
+    },
+    {
       href: "/admin/transactions",
       label: "Transactions",
       icon: CreditCard,
       description: "Financial transactions",
-      color: "from-emerald-500 to-emerald-600",
+      color: "from-green-500 to-green-600",
     },
     {
       href: "/admin/reporting",
@@ -125,13 +133,6 @@ export default function AdminLayout({
       icon: BarChart3,
       description: "Business reports",
       color: "from-violet-500 to-violet-600",
-    },
-    {
-      href: "/admin/documentation",
-      label: "Documentation",
-      icon: BookOpen,
-      description: "Guides and API docs",
-      color: "from-slate-500 to-slate-600",
     },
     {
       href: "/admin/rate-calculator",
@@ -181,30 +182,33 @@ export default function AdminLayout({
 
           {/* Navigation - Scrollable */}
           <style jsx global>{`
-            /* Custom scrollbar for WebKit browsers */
+            /* Custom scrollbar for WebKit browsers - Overlay style, no layout shift */
+            .sidebar-scrollbar {
+              overflow-y: auto;
+              scrollbar-gutter: stable;
+            }
             .sidebar-scrollbar::-webkit-scrollbar {
               width: 6px;
-              height: 6px;
             }
             .sidebar-scrollbar::-webkit-scrollbar-track {
-              background: rgba(255, 255, 255, 0.1);
-              border-radius: 3px;
+              background: transparent;
+              margin: 8px 0;
             }
             .sidebar-scrollbar::-webkit-scrollbar-thumb {
-              background: rgba(255, 255, 255, 0.3);
+              background: rgba(255, 255, 255, 0.2);
               border-radius: 3px;
               transition: background 0.2s ease-in-out;
             }
             .sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-              background: rgba(255, 255, 255, 0.5);
+              background: rgba(255, 255, 255, 0.4);
             }
             /* Custom scrollbar for Firefox */
             .sidebar-scrollbar {
               scrollbar-width: thin;
-              scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.1);
+              scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
             }
           `}</style>
-          <nav className="flex-1 overflow-y-auto space-y-1 p-4 pr-2 sidebar-scrollbar">
+          <nav className="flex-1 overflow-y-auto space-y-1 p-4 pr-2 sidebar-scrollbar" style={{ scrollbarGutter: 'stable', minHeight: 0 }}>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.href === "/admin"

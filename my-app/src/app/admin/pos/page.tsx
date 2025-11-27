@@ -248,8 +248,9 @@ export default function AdminPosPage() {
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
         <div className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl">
           <div className="absolute inset-0 bg-white/10" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-4">
+          <div className="relative flex flex-col gap-6">
+            {/* Top Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
                   <ShoppingCart className="h-7 w-7" />
@@ -257,34 +258,70 @@ export default function AdminPosPage() {
                 <div>
                   <p className="text-sm uppercase tracking-widest text-blue-100">Point of Sale</p>
                   <h1 className="text-3xl font-bold leading-tight md:text-4xl">POS Control Center</h1>
-                  <p className="mt-1 text-sm text-blue-100">Live sales, responsive UI, and instant processing</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-4 text-sm text-blue-100">
-                <span>Items selected: {selectedCount}</span>
-                <span>Current total: {formatCurrency(total)}</span>
-                <span>Auto-refresh: {(AUTO_REFRESH_MS / 1000).toFixed(0)}s</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={fetchPosData}
+                  className="flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 disabled:opacity-60"
+                  disabled={syncing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+                  {syncing ? "Syncing..." : "Refresh Data"}
+                </button>
+                <div className="rounded-2xl border border-white/30 bg-white/10 px-5 py-3 text-sm">
+                  <div className="text-blue-100">Last synced</div>
+                  <div className="text-base font-semibold">{lastUpdated ? lastUpdated.toLocaleTimeString() : "Just now"}</div>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={fetchPosData}
-                className="flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 disabled:opacity-60"
-                disabled={syncing}
-              >
-                <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
-                {syncing ? "Syncing..." : "Refresh Data"}
-              </button>
-              <div className="rounded-2xl border border-white/30 bg-white/10 px-5 py-3 text-sm">
-                <div className="text-blue-100">Last synced</div>
-                <div className="text-base font-semibold">{lastUpdated ? lastUpdated.toLocaleTimeString() : "Just now"}</div>
+
+            {/* Stats Cards inside header */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Items Selected */}
+              <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <Package className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-100">Items Selected</p>
+                    <p className="mt-1 text-2xl font-bold">{selectedCount}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Current Total */}
+              <div className="group relative overflow-hidden rounded-xl bg-emerald-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-emerald-100">Current Total</p>
+                    <p className="mt-1 text-2xl font-bold">{formatCurrency(total)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Auto-refresh */}
+              <div className="group relative overflow-hidden rounded-xl bg-blue-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <RefreshCw className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-100">Auto-refresh</p>
+                    <p className="mt-1 text-2xl font-bold">{(AUTO_REFRESH_MS / 1000).toFixed(0)}s</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {statItems.map((item) => (
             <StatCard key={item.title} {...item} />
           ))}
@@ -357,67 +394,128 @@ export default function AdminPosPage() {
                 </div>
               </div>
               <div className="space-y-4 p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm uppercase tracking-widest text-gray-500">Services</p>
-                    <h3 className="text-lg font-bold text-gray-900">Select Services</h3>
-                  </div>
-                  {selectedCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSelected({})}
-                      className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Clear
-                    </button>
-                  )}
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {services.map((service) => {
-                    const Icon = service.icon;
-                    const isSelected = !!selected[service.key];
-                    return (
-                      <label
-                        key={service.key}
-                        className={`group relative flex cursor-pointer flex-col gap-4 rounded-2xl border-2 p-4 transition ${
-                          isSelected
-                            ? "border-[#0f4d8a] bg-blue-50 shadow-lg"
-                            : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${service.color} text-white shadow-md transition group-hover:scale-105`}
+                {activeTab === "services" && (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm uppercase tracking-widest text-gray-500">Services</p>
+                        <h3 className="text-lg font-bold text-gray-900">Select Services</h3>
+                      </div>
+                      {selectedCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setSelected({})}
+                          className="flex items-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      {services.map((service) => {
+                        const Icon = service.icon;
+                        const isSelected = !!selected[service.key];
+                        return (
+                          <label
+                            key={service.key}
+                            className={`group relative flex cursor-pointer flex-col gap-4 rounded-2xl border-2 p-4 transition ${
+                              isSelected
+                                ? "border-[#0f4d8a] bg-blue-50 shadow-lg"
+                                : "border-gray-200 bg-white hover:border-gray-300 hover:shadow-md"
+                            }`}
                           >
-                            <Icon className="h-6 w-6" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">{service.name}</p>
-                            <p className="text-2xl font-bold text-[#0f4d8a]">${service.amount.toFixed(2)}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs uppercase tracking-wide text-gray-500">Add to cart</span>
-                          <div className="relative">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={(event) =>
-                                setSelected((prev) => ({ ...prev, [service.key]: event.target.checked }))
-                              }
-                              className="peer h-6 w-6 cursor-pointer appearance-none rounded-lg border-2 border-gray-300 transition checked:border-[#0f4d8a] checked:bg-[#0f4d8a]"
-                            />
-                            <CheckCircle2 className="pointer-events-none absolute inset-0 m-auto h-5 w-5 text-white opacity-0 transition peer-checked:opacity-100" />
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-[#0f4d8a] to-[#0e7893]" />
-                        )}
-                      </label>
-                    );
-                  })}
-                </div>
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${service.color} text-white shadow-md transition group-hover:scale-105`}
+                              >
+                                <Icon className="h-6 w-6" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{service.name}</p>
+                                <p className="text-2xl font-bold text-[#0f4d8a]">${service.amount.toFixed(2)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs uppercase tracking-wide text-gray-500">Add to cart</span>
+                              <div className="relative">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(event) =>
+                                    setSelected((prev) => ({ ...prev, [service.key]: event.target.checked }))
+                                  }
+                                  className="peer h-6 w-6 cursor-pointer appearance-none rounded-lg border-2 border-gray-300 transition checked:border-[#0f4d8a] checked:bg-[#0f4d8a]"
+                                />
+                                <CheckCircle2 className="pointer-events-none absolute inset-0 m-auto h-5 w-5 text-white opacity-0 transition peer-checked:opacity-100" />
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+
+                {activeTab === "fees" && (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm uppercase tracking-widest text-gray-500">Fees</p>
+                      <h3 className="text-lg font-bold text-gray-900">Additional Fees</h3>
+                    </div>
+                    <div className="rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center">
+                      <DollarSign className="mx-auto h-12 w-12 text-gray-400" />
+                      <p className="mt-4 text-sm font-medium text-gray-600">All fees are included in services</p>
+                      <p className="mt-2 text-xs text-gray-500">Select services from the Services tab to add fees</p>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "payments" && (
+                  <div className="space-y-4">
+                    <div>
+                      <p className="text-sm uppercase tracking-widest text-gray-500">Payments</p>
+                      <h3 className="text-lg font-bold text-gray-900">Payment History</h3>
+                    </div>
+                    {paymentBreakdown.length === 0 ? (
+                      <div className="rounded-2xl border-2 border-dashed border-gray-200 p-8 text-center">
+                        <CreditCard className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-4 text-sm font-medium text-gray-600">No payment data available</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {paymentBreakdown.map((entry) => {
+                          const percent = stats?.total_revenue ? Math.round((entry.total / stats.total_revenue) * 100) : 0;
+                          return (
+                            <div key={entry.method} className="rounded-xl border border-gray-200 bg-white p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${METHOD_COLORS[entry.method] || "bg-gray-100"}`}>
+                                    <CreditCard className="h-5 w-5" />
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-semibold text-gray-900">{METHOD_LABELS[entry.method] || entry.method}</p>
+                                    <p className="text-xs text-gray-500">{entry.count} transactions</p>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-bold text-gray-900">{formatCurrency(entry.total)}</p>
+                                  <p className="text-xs text-gray-500">{percent}%</p>
+                                </div>
+                              </div>
+                              <div className="mt-2 h-2 rounded-full bg-gray-100">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-[#0f4d8a] to-[#0e7893]"
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -543,22 +641,19 @@ export default function AdminPosPage() {
 
                 <div className="space-y-2 border-t border-gray-100 pt-4">
                   <label className="text-sm font-semibold text-gray-700">Payment Method</label>
-                  <div className="relative">
-                    <select
-                      className="w-full appearance-none rounded-2xl border-2 border-gray-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-gray-900 transition focus:border-[#0f4d8a] focus:outline-none focus:ring-2 focus:ring-[#0f4d8a]/20"
-                      value={method}
-                      onChange={(e) => setMethod(e.target.value)}
-                    >
-                      <option value="card">💳 Credit Card</option>
-                      <option value="cash">💵 Cash</option>
-                      <option value="visa">💳 Visa</option>
-                      <option value="mastercard">💳 Mastercard</option>
-                      <option value="amex">💳 American Express</option>
-                      <option value="bank">🏦 Bank Transfer</option>
-                      <option value="wallet">👛 Digital Wallet</option>
-                    </select>
-                    <CreditCard className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                  </div>
+                  <select
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value)}
+                    className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-gray-900 transition-all focus:border-[#0f4d8a] focus:outline-none focus:ring-2 focus:ring-[#0f4d8a]/20"
+                  >
+                    <option value="card">💳 Credit Card</option>
+                    <option value="cash">💵 Cash</option>
+                    <option value="visa">💳 Visa</option>
+                    <option value="mastercard">💳 Mastercard</option>
+                    <option value="amex">💳 American Express</option>
+                    <option value="bank">🏦 Bank Transfer</option>
+                    <option value="wallet">👛 Digital Wallet</option>
+                  </select>
                 </div>
 
                 <button

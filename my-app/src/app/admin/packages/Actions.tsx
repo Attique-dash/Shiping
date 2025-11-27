@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Modal from "./Modal";
+import SharedModal from "@/components/admin/SharedModal";
+import DeleteConfirmationModal from "@/components/admin/DeleteConfirmationModal";
 import { 
   Edit, 
   Trash2, 
@@ -47,6 +48,7 @@ export default function Actions(props: Props) {
   const [loading, setLoading] = useState<null | "edit" | "delete" | "invoice_update">(null);
   const [open, setOpen] = useState(false);
   const [openInvoices, setOpenInvoices] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   const [status, setStatus] = useState<string>(props.status || "");
   const [weight, setWeight] = useState<string>(props.weight != null ? String(props.weight) : "");
@@ -134,8 +136,8 @@ export default function Actions(props: Props) {
         alert(`Update failed: ${j.error || res.statusText}`);
         return;
       }
-      alert("Package updated successfully.");
-      location.reload();
+      setOpen(false);
+      window.location.reload();
     } finally {
       setLoading(null);
       setOpen(false);
@@ -143,17 +145,17 @@ export default function Actions(props: Props) {
   }
 
   async function onDelete() {
-    if (!window.confirm(`Are you sure you want to permanently delete package ${trackingNumber}? This action cannot be undone.`)) return;
     setLoading("delete");
     try {
       const res = await fetch(`/api/admin/packages?id=${encodeURIComponent(id)}`, { method: "DELETE" });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         alert(`Delete failed: ${j.error || res.statusText}`);
+        setDeleteConfirm(false);
         return;
       }
-      alert("Package deleted successfully.");
-      location.reload();
+      setDeleteConfirm(false);
+      window.location.reload();
     } finally {
       setLoading(null);
     }
@@ -183,26 +185,28 @@ export default function Actions(props: Props) {
         )}
         
         <button 
-          onClick={onDelete} 
+          onClick={() => setDeleteConfirm(true)} 
           disabled={loading !== null} 
           className="group flex items-center justify-center gap-2 rounded-xl border-2 border-red-200 bg-red-50 px-4 py-2.5 text-sm font-semibold text-red-700 transition-all hover:border-red-300 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading === "delete" ? (
-            <>
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-red-300 border-t-red-700" />
-              Deleting...
-            </>
-          ) : (
-            <>
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </>
-          )}
+          <Trash2 className="h-4 w-4" />
+          Delete
         </button>
       </div>
 
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteConfirm}
+        onClose={() => setDeleteConfirm(false)}
+        onConfirm={onDelete}
+        title="Delete Package"
+        message="Are you sure you want to permanently delete this package? This action cannot be undone and will permanently remove all associated data."
+        itemName={`Tracking Number: ${trackingNumber}`}
+        loading={loading === "delete"}
+      />
+
       {/* Edit Modal */}
-      <Modal 
+      <SharedModal 
         open={open} 
         title={`Edit Package: ${trackingNumber}`} 
         onClose={() => setOpen(false)}
@@ -336,10 +340,10 @@ export default function Actions(props: Props) {
             </div>
           </div>
         </form>
-      </Modal>
+      </SharedModal>
 
       {/* Invoices Modal */}
-      <Modal 
+      <SharedModal 
         open={openInvoices} 
         title={`Invoice Records — ${trackingNumber}`} 
         onClose={() => setOpenInvoices(false)}
@@ -441,7 +445,7 @@ export default function Actions(props: Props) {
             ))}
           </div>
         )}
-      </Modal>
+      </SharedModal>
     </>
   );
 }

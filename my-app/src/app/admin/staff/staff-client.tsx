@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { AdminLoading } from "@/components/admin/AdminLoading";
+import SharedModal from "@/components/admin/SharedModal";
+import AddButton from "@/components/admin/AddButton";
+import DeleteConfirmationModal from "@/components/admin/DeleteConfirmationModal";
 
 type Staff = {
   _id: string;
@@ -21,6 +24,7 @@ export default function StaffPageClient() {
 
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Staff | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; staff: Staff | null }>({ open: false, staff: null });
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", password: "", branch: "" });
 
   async function load() {
@@ -77,8 +81,13 @@ export default function StaffPageClient() {
     await load();
   }
 
-  async function deleteItem(id: string) {
-    if (!confirm("Delete this staff account?")) return;
+  function openDelete(s: Staff) {
+    setDeleteConfirm({ open: true, staff: s });
+  }
+
+  async function deleteItem() {
+    if (!deleteConfirm.staff) return;
+    const id = deleteConfirm.staff._id;
     const res = await fetch("/api/admin/staff", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -89,6 +98,7 @@ export default function StaffPageClient() {
       alert(data?.error || "Delete failed");
       return;
     }
+    setDeleteConfirm({ open: false, staff: null });
     await load();
   }
 
@@ -125,15 +135,7 @@ export default function StaffPageClient() {
     </div>
 
     {/* Add Button */}
-    <button
-      onClick={openAdd}
-      className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95"
-    >
-      <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-      </svg>
-      Add Staff Member
-    </button>
+    <AddButton onClick={openAdd} label="Add Staff Member" className="bg-white/15 text-white hover:bg-white/25" />
   </div>
 
   {/* Stats Cards inside Header */}
@@ -314,7 +316,7 @@ export default function StaffPageClient() {
                       </button>
 
                       <button
-                        onClick={() => deleteItem(s._id)}
+                        onClick={() => openDelete(s)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition-all hover:bg-red-600 hover:text-white"
                       >
                         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,41 +335,34 @@ export default function StaffPageClient() {
 
       {/* Add/Edit Staff Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-[#0f4d8a]/5 to-[#E67919]/5 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#E67919] p-2">
-                  {editing ? (
-                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {editing ? "Edit Staff Member" : "Add New Staff Member"}
-                  </h2>
-                  <p className="text-xs text-gray-500">
-                    {editing ? `Updating ${editing.userCode}` : "Create a new warehouse staff account"}
-                  </p>
-                </div>
-              </div>
+        <SharedModal
+          open={showForm}
+          title={editing ? "Edit Staff Member" : "Add New Staff Member"}
+          onClose={() => setShowForm(false)}
+          footer={
+            <>
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Cancel
               </button>
-            </div>
+              <button
+                type="submit"
+                form="staff-form"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {editing ? "Update Staff Member" : "Create Staff Member"}
+              </button>
+            </>
+          }
+        >
 
-            <form onSubmit={submitForm} className="px-6 py-6 space-y-4">
+            <form id="staff-form" onSubmit={submitForm} className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="rounded-lg bg-[#0f4d8a]/10 p-1.5">
@@ -473,29 +468,19 @@ export default function StaffPageClient() {
                   <p className="mt-1 text-xs text-gray-500">Optional: Assign staff member to a specific branch</p>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between border-t border-gray-200 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {editing ? "Update Staff Member" : "Create Staff Member"}
-                </button>
-              </div>
             </form>
-          </div>
-        </div>
+        </SharedModal>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, staff: null })}
+        onConfirm={deleteItem}
+        title="Delete Staff Member"
+        message="Are you sure you want to delete this staff member? This action cannot be undone and will permanently remove all associated data."
+        itemName={deleteConfirm.staff ? `${deleteConfirm.staff.firstName} ${deleteConfirm.staff.lastName} (${deleteConfirm.staff.userCode})` : undefined}
+      />
     </div>
   );
 }

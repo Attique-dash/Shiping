@@ -210,7 +210,28 @@ export default function AdminDashboard() {
                 <span className="hidden sm:inline">Refresh</span>
               </button>
 
-              <button className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 font-medium text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl">
+              <button 
+                onClick={async () => {
+                  try {
+                    const response = await fetch(`/api/admin/reports/packages?format=csv&range=${timeRange}`, {
+                      credentials: 'include',
+                    });
+                    if (!response.ok) throw new Error('Export failed');
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `dashboard-export-${timeRange}-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                  } catch (err) {
+                    alert(err instanceof Error ? err.message : 'Failed to export data');
+                  }
+                }}
+                className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-2.5 font-medium text-white shadow-lg shadow-blue-500/30 transition-all hover:shadow-xl"
+              >
                 <Download className="h-4 w-4" />
                 <span className="hidden sm:inline">Export</span>
               </button>

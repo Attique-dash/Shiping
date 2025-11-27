@@ -43,6 +43,7 @@ export async function GET(req: Request) {
       status: p.status,
       reference: p.reference || null,
       gateway_id: p.gatewayId || null,
+      payment_gateway: (p as any).paymentGateway || null,
       tracking_number: (p as any).trackingNumber || null,
       created_at: p.createdAt ? new Date(p.createdAt).toISOString() : null,
       updated_at: p.updatedAt ? new Date(p.updatedAt).toISOString() : null,

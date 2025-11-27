@@ -122,9 +122,9 @@ export default async function AdminPackagesPage({
       <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl">
   <div className="absolute inset-0 bg-white/10" />
 
-  <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-    {/* LEFT SECTION */}
-    <div className="flex flex-col gap-4">
+  <div className="relative flex flex-col gap-6">
+    {/* Top Row */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div className="flex items-center gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
           <PackageIcon className="h-7 w-7 text-white" />
@@ -135,39 +135,68 @@ export default async function AdminPackagesPage({
           <h1 className="text-3xl font-bold leading-tight md:text-4xl">
             Package Management
           </h1>
-          <p className="mt-1 text-sm text-blue-100">
-            Track and manage all packages
-          </p>
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="flex flex-wrap gap-3 text-xs text-blue-100">
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <PackageIcon className="h-3 w-3" />
-          {stats.total} Total
-        </span>
-
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <Warehouse className="h-3 w-3" />
-          {stats.atWarehouse} at Warehouse
-        </span>
-
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <Truck className="h-3 w-3" />
-          {stats.inTransit} in Transit
-        </span>
-
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <CheckCircle2 className="h-3 w-3" />
-          {stats.delivered} Delivered
-        </span>
+      {/* RIGHT SECTION – ADD BUTTON */}
+      <div className="flex items-center">
+        <AddForm />
       </div>
     </div>
 
-    {/* RIGHT SECTION – ADD BUTTON */}
-    <div className="flex items-center">
-      <AddForm />
+    {/* Stats Cards inside header */}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Total */}
+      <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <PackageIcon className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-blue-100">Total</p>
+            <p className="mt-1 text-2xl font-bold">{stats.total}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* at Warehouse */}
+      <div className="group relative overflow-hidden rounded-xl bg-emerald-500/20 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <Warehouse className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-emerald-100">at Warehouse</p>
+            <p className="mt-1 text-2xl font-bold">{stats.atWarehouse}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* in Transit */}
+      <div className="group relative overflow-hidden rounded-xl bg-blue-500/20 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <Truck className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-blue-100">in Transit</p>
+            <p className="mt-1 text-2xl font-bold">{stats.inTransit}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Delivered */}
+      <div className="group relative overflow-hidden rounded-xl bg-purple-500/20 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <CheckCircle2 className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-purple-100">Delivered</p>
+            <p className="mt-1 text-2xl font-bold">{stats.delivered}</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>

@@ -152,8 +152,9 @@ export default function AdminInvoicesPage() {
       <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
         <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl">
           <div className="absolute inset-0 bg-white/10" />
-          <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-col gap-4">
+          <div className="relative flex flex-col gap-6">
+            {/* Top Row */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
                   <FileText className="h-7 w-7" />
@@ -161,73 +162,89 @@ export default function AdminInvoicesPage() {
                 <div>
                   <p className="text-sm uppercase tracking-widest text-blue-100">Billing</p>
                   <h1 className="text-3xl font-bold leading-tight md:text-4xl">Invoices</h1>
-                  <p className="mt-1 text-sm text-blue-100">Monitor and manage all customer invoices</p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-3 text-xs text-blue-100">
-                <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-                  <Activity className="h-3 w-3" />
-                  {stats.totalInvoices.toLocaleString()} invoices
-                </span>
-                {hasFilters && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-                    <Filter className="h-3 w-3" />
-                    Filters active
-                  </span>
-                )}
+              <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+                <button
+                  type="button"
+                  onClick={() => fetchInvoices({ page: 1, silent: true })}
+                  disabled={refreshing}
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 disabled:opacity-60"
+                >
+                  {refreshing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {refreshing ? "Refreshing..." : "Refresh Data"}
+                </button>
+                <a
+                  href="/admin/invoices/generator"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#0f4d8a] shadow-lg shadow-blue-900/20 transition hover:bg-blue-50"
+                >
+                  <FileText className="h-4 w-4" />
+                  New Invoice
+                </a>
               </div>
             </div>
-            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => fetchInvoices({ page: 1, silent: true })}
-                disabled={refreshing}
-                className="flex items-center justify-center gap-2 rounded-2xl bg-white/15 px-4 py-3 text-sm font-semibold shadow-lg shadow-blue-900/30 transition hover:bg-white/25 disabled:opacity-60"
-              >
-                {refreshing ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                {refreshing ? "Refreshing..." : "Refresh Data"}
-              </button>
-              <a
-                href="/admin/invoices/generator"
-                className="flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-[#0f4d8a] shadow-lg shadow-blue-900/20 transition hover:bg-blue-50"
-              >
-                <FileText className="h-4 w-4" />
-                New Invoice
-              </a>
+
+            {/* Stats Cards inside header */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {/* Total Invoices */}
+              <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <FileText className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-100">Total Invoices</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.totalInvoices.toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Amount */}
+              <div className="group relative overflow-hidden rounded-xl bg-emerald-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <DollarSign className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-emerald-100">Total Amount</p>
+                    <p className="mt-1 text-2xl font-bold">{formatCurrency(stats.totalAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Paid */}
+              <div className="group relative overflow-hidden rounded-xl bg-green-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <CheckCircle2 className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-green-100">Paid</p>
+                    <p className="mt-1 text-2xl font-bold">{formatCurrency(stats.paidAmount)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Outstanding */}
+              <div className="group relative overflow-hidden rounded-xl bg-orange-500/20 p-5 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-4">
+                  <div className="rounded-lg bg-white/20 p-3">
+                    <AlertCircle className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-orange-100">Outstanding</p>
+                    <p className="mt-1 text-2xl font-bold">{formatCurrency(stats.outstanding)}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MiniStatCard
-            icon={FileText}
-            label="Total Invoices"
-            value={stats.totalInvoices.toLocaleString()}
-            helper="Across all statuses"
-          />
-          <MiniStatCard
-            icon={DollarSign}
-            label="Amount (Page)"
-            value={formatCurrency(stats.totalAmount)}
-            helper="Sum of listed invoices"
-          />
-          <MiniStatCard
-            icon={CheckCircle2}
-            label="Paid"
-            value={formatCurrency(stats.paidAmount)}
-            helper={`${stats.paidRatio}% of invoices paid`}
-          />
-          <MiniStatCard
-            icon={AlertCircle}
-            label="Outstanding"
-            value={formatCurrency(stats.outstanding)}
-            helper="Remaining balance due"
-          />
-        </section>
 
         <section className="rounded-2xl bg-white p-4 shadow-xl ring-1 ring-gray-100 sm:p-6 space-y-4">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

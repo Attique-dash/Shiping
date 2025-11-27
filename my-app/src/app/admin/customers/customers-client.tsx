@@ -1,7 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { AdminLoading } from "@/components/admin/AdminLoading";
+import SharedModal from "@/components/admin/SharedModal";
+import AddButton from "@/components/admin/AddButton";
+import DeleteConfirmationModal from "@/components/admin/DeleteConfirmationModal";
+import countryList from "react-select-country-list";
+import CountryFlag from "react-country-flag";
+import { components, SingleValueProps, OptionProps } from "react-select";
+
+type CountryOption = { value: string; label: string };
 
 type Customer = {
   _id: string;
@@ -50,6 +59,7 @@ export default function CustomersPageClient() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [showMessage, setShowMessage] = useState<{ userCode: string; name: string } | null>(null);
   const [messageForm, setMessageForm] = useState({ subject: "", body: "" });
+  const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   const [form, setForm] = useState({
     firstName: "",
     lastName: "",
@@ -60,13 +70,16 @@ export default function CustomersPageClient() {
     city: "",
     state: "",
     zip: "",
-    country: "",
+    country: "JM",
     status: "Active",
     emailVerified: "Yes",
     accountType: "Basic",
     branch: "",
     serviceTypeIDs: "",
   });
+
+  const countryOptions: CountryOption[] = useMemo(() => countryList().getData() as CountryOption[], []);
+  const ReactSelect = useMemo(() => dynamic(() => import("react-select"), { ssr: false }) as unknown as React.ComponentType<any>, []);
 
   async function load() {
     setLoading(true);
@@ -227,8 +240,13 @@ export default function CustomersPageClient() {
     await load();
   }
 
-  async function deleteItem(id: string) {
-    if (!confirm("Delete this customer?")) return;
+  function openDelete(c: Customer) {
+    setDeleteConfirm({ open: true, customer: c });
+  }
+
+  async function deleteItem() {
+    if (!deleteConfirm.customer) return;
+    const id = deleteConfirm.customer._id;
     const res = await fetch("/api/admin/customers", {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -239,6 +257,7 @@ export default function CustomersPageClient() {
       alert(data?.error || "Delete failed");
       return;
     }
+    setDeleteConfirm({ open: false, customer: null });
     await load();
   }
 
@@ -270,15 +289,7 @@ export default function CustomersPageClient() {
       </div>
 
       {/* Add Customer Button */}
-      <button
-        onClick={openAdd}
-        className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-md backdrop-blur transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95"
-      >
-        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-        </svg>
-        Add Customer
-      </button>
+      <AddButton onClick={openAdd} label="Add Customer" className="bg-white/15 text-white hover:bg-white/25" />
     </div>
 
     {/* Stats Cards inside header */}
@@ -547,7 +558,7 @@ export default function CustomersPageClient() {
                       </button>
 
                       <button
-                        onClick={() => deleteItem(c._id)}
+                        onClick={() => openDelete(c)}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-600 transition-all hover:bg-red-600 hover:text-white"
                       >
                         <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -566,41 +577,53 @@ export default function CustomersPageClient() {
 
       {/* Add/Edit Customer Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl max-h-[90vh] flex flex-col rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-[#0f4d8a]/5 to-[#E67919]/5 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#E67919] p-2">
-                  {editing ? (
-                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  ) : (
-                    <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">
-                    {editing ? "Edit Customer" : "Add New Customer"}
-                  </h2>
-                  <p className="text-xs text-gray-500">
-                    {editing ? `Updating ${editing.userCode}` : "Create a new customer account"}
-                  </p>
-                </div>
-              </div>
+        <SharedModal
+          open={showForm}
+          title={editing ? "Edit Customer" : "Add New Customer"}
+          onClose={() => setShowForm(false)}
+          footer={
+            <>
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+                className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
               >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                Cancel
               </button>
-            </div>
-
-            <form onSubmit={submitForm} className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForm(false);
+                    if (editing) openDelete(editing);
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-600 hover:text-white"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  Delete Customer
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={(e) => {
+                  const formEl = document.querySelector('form');
+                  if (formEl) {
+                    formEl.requestSubmit();
+                  }
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {editing ? "Update Customer" : "Create Customer"}
+              </button>
+            </>
+          }
+        >
+          <form onSubmit={submitForm} className="space-y-6">
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="rounded-lg bg-[#0f4d8a]/10 p-1.5">
@@ -703,16 +726,42 @@ export default function CustomersPageClient() {
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-700">Country</label>
-                    <select
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#0f4d8a] focus:outline-none focus:ring-2 focus:ring-[#0f4d8a]/20"
-                      value={form.country}
-                      onChange={(e) => setForm({ ...form, country: e.target.value })}
-                    >
-                      <option value="">Select Country</option>
-                      <option>United States</option>
-                      <option>Canada</option>
-                      <option>United Kingdom</option>
-                    </select>
+                    <ReactSelect
+                      classNamePrefix="country"
+                      options={countryOptions}
+                      placeholder="Select country..."
+                      isSearchable
+                      value={countryOptions.find((o) => o.value === form.country) || null}
+                      onChange={(opt: CountryOption | null) => setForm({ ...form, country: (opt?.value) || "JM" })}
+                      components={{
+                        Option: (props: OptionProps<CountryOption>) => (
+                          <components.Option {...props}>
+                            <div className="flex items-center gap-2">
+                              <CountryFlag svg countryCode={props.data.value} style={{ width: 18, height: 12 }} />
+                              <span>{props.data.label}</span>
+                  </div>
+                          </components.Option>
+                        ),
+                        SingleValue: (props: SingleValueProps<CountryOption>) => (
+                          <components.SingleValue {...props}>
+                            <div className="flex items-center gap-2">
+                              <CountryFlag svg countryCode={props.data.value} style={{ width: 18, height: 12 }} />
+                              <span>{props.data.label}</span>
+                            </div>
+                          </components.SingleValue>
+                        ),
+                      }}
+                      menuPortalTarget={typeof document !== "undefined" ? document.body : null}
+                      styles={{
+                        menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+                        control: (base) => ({
+                          ...base,
+                          minHeight: "38px",
+                          borderColor: "#d1d5db",
+                          "&:hover": { borderColor: "#0f4d8a" },
+                        }),
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -822,78 +871,44 @@ export default function CustomersPageClient() {
                 </div>
               </div>
             </form>
-
-            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-6 py-4">
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    const formEl = document.querySelector('form');
-                    if (formEl) {
-                      formEl.requestSubmit();
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#0f4d8a] to-[#0f4d8a]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  {editing ? "Update Customer" : "Create Customer"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-              {editing && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (editing) deleteItem(editing._id);
-                  }}
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-medium text-red-600 transition-all hover:bg-red-600 hover:text-white"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  Delete Customer
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        </SharedModal>
       )}
 
       {/* Message Modal */}
       {showMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-200 bg-gradient-to-r from-[#E67919]/5 to-[#0f4d8a]/5 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="rounded-lg bg-gradient-to-r from-[#E67919] to-[#E67919]/80 p-2">
-                  <svg className="h-5 w-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900">Send Message</h2>
-                  <p className="text-xs text-gray-500">To: {showMessage.name}</p>
-                </div>
-              </div>
-              <button
+        <SharedModal
+          open={!!showMessage}
+          title="Send Message"
+          onClose={() => setShowMessage(null)}
+          footer={
+            <>
+                <button
+                  type="button"
                 onClick={() => setShowMessage(null)}
-                className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
-              >
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                type="submit"
+                form="message-form"
+                className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#E67919] to-[#E67919]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                  </svg>
+                Send Message
+                </button>
+            </>
+          }
+        >
+          <div className="space-y-4">
+            <div className="rounded-lg bg-blue-50 p-3">
+              <p className="text-sm font-medium text-gray-700">To: {showMessage.name}</p>
+              <p className="text-xs text-gray-500">User Code: {showMessage.userCode}</p>
             </div>
-
             <form
+              id="message-form"
               onSubmit={async (e) => {
                 e.preventDefault();
                 const res = await fetch("/api/admin/messages", {
@@ -912,8 +927,9 @@ export default function CustomersPageClient() {
                 }
                 alert("Message sent successfully!");
                 setShowMessage(null);
+                setMessageForm({ subject: "", body: "" });
               }}
-              className="px-6 py-6 space-y-4"
+              className="space-y-4"
             >
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-700">Subject (Optional)</label>
@@ -936,29 +952,20 @@ export default function CustomersPageClient() {
                   required
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-2 border-t border-gray-200 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowMessage(null)}
-                  className="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-[#E67919] to-[#E67919]/90 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:shadow-lg hover:scale-105 active:scale-95"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                  Send Message
-                </button>
-              </div>
             </form>
           </div>
-        </div>
+        </SharedModal>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, customer: null })}
+        onConfirm={deleteItem}
+        title="Delete Customer"
+        message="Are you sure you want to delete this customer? This action cannot be undone and will permanently remove all associated data."
+        itemName={deleteConfirm.customer ? `${deleteConfirm.customer.firstName} ${deleteConfirm.customer.lastName} (${deleteConfirm.customer.userCode})` : undefined}
+      />
     </div>
   );
 }

@@ -91,9 +91,9 @@ export default function UnknownPackagesPage() {
 <header className="relative overflow-hidden rounded-3xl border border-white/50 bg-gradient-to-r from-[#0f4d8a] via-[#0e447d] to-[#0d3d70] p-6 text-white shadow-2xl mb-8">
   <div className="absolute inset-0 bg-white/10" />
 
-  <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-    {/* Left Side */}
-    <div className="flex flex-col gap-4">
+  <div className="relative flex flex-col gap-6">
+    {/* Top Row */}
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div className="flex items-center gap-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
           <Package className="h-7 w-7" />
@@ -102,28 +102,6 @@ export default function UnknownPackagesPage() {
         <div>
           <p className="text-sm uppercase tracking-widest text-blue-100">Package Review</p>
           <h1 className="text-3xl font-bold leading-tight md:text-4xl">Unknown Packages</h1>
-          <p className="mt-1 text-sm text-blue-100">
-            Packages requiring manual review and assignment
-          </p>
-        </div>
-      </div>
-
-      {/* Stats Badges */}
-      <div className="flex flex-wrap gap-3 text-xs text-blue-100">
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <AlertCircle className="h-3 w-3" />
-          {totalCount} Total
-        </span>
-
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <Clock className="h-3 w-3" />
-          {stats.recent24h} New (24h)
-        </span>
-
-        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-          <User className="h-3 w-3" />
-          {stats.noCustomer} No Customer
-        </span>
       </div>
     </div>
 
@@ -142,6 +120,49 @@ export default function UnknownPackagesPage() {
         )}
         {refreshing ? "Refreshing..." : "Refresh Data"}
       </button>
+      </div>
+    </div>
+
+    {/* Stats Cards inside header */}
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Total */}
+      <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <AlertCircle className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-blue-100">Total</p>
+            <p className="mt-1 text-2xl font-bold">{totalCount}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* New (24h) */}
+      <div className="group relative overflow-hidden rounded-xl bg-orange-500/20 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <Clock className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-orange-100">New (24h)</p>
+            <p className="mt-1 text-2xl font-bold">{stats.recent24h}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* No Customer */}
+      <div className="group relative overflow-hidden rounded-xl bg-red-500/20 p-5 shadow-md backdrop-blur">
+        <div className="relative flex items-center gap-4">
+          <div className="rounded-lg bg-white/20 p-3">
+            <User className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-red-100">No Customer</p>
+            <p className="mt-1 text-2xl font-bold">{stats.noCustomer}</p>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </header>

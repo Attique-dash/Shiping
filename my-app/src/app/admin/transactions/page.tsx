@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { DollarSign, TrendingUp, TrendingDown, CreditCard, Search, Filter, Calendar, ChevronDown, CheckCircle, XCircle, Clock, AlertCircle, Download, Eye, User, Building, Receipt } from "lucide-react";
+import { useState, useEffect } from "react";
+import { DollarSign, TrendingUp, TrendingDown, CreditCard, Search, Filter, Calendar, ChevronDown, CheckCircle, XCircle, Clock, AlertCircle, Download, Eye, User, Building, Receipt, RefreshCw, Settings } from "lucide-react";
+import { AdminLoading } from "@/components/admin/AdminLoading";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 
 type TransactionType = "sale" | "refund" | "purchase" | "expense";
-type TransactionStatus = "completed" | "pending" | "failed" | "reconciled";
+type TransactionStatus = "completed" | "pending" | "failed" | "reconciled" | "captured" | "authorized" | "refunded";
 
 type Transaction = {
   id: string;
@@ -22,127 +24,67 @@ type Transaction = {
   category: string;
 };
 
-// Demo data
-const demoTransactions: Transaction[] = [
-  {
-    id: "1",
-    transactionId: "TXN-2024-001",
-    type: "sale",
-    status: "completed",
-    amount: 15000,
-    description: "Product sale - Bulk order",
-    customer: "Ali Ahmed",
-    paymentMethod: "Bank Transfer",
-    reference: "REF-001",
-    date: "2024-11-13",
-    reconciled: true,
-    category: "Sales",
-  },
-  {
-    id: "2",
-    transactionId: "TXN-2024-002",
-    type: "refund",
-    status: "completed",
-    amount: 2500,
-    description: "Product return - Damaged item",
-    customer: "Sara Khan",
-    paymentMethod: "Cash",
-    reference: "REF-002",
-    date: "2024-11-13",
-    reconciled: false,
-    category: "Refunds",
-  },
-  {
-    id: "3",
-    transactionId: "TXN-2024-003",
-    type: "purchase",
-    status: "pending",
-    amount: 45000,
-    description: "Inventory purchase from supplier",
-    vendor: "ABC Suppliers Ltd",
-    paymentMethod: "Credit",
-    reference: "PO-123",
-    date: "2024-11-12",
-    reconciled: false,
-    category: "Purchases",
-  },
-  {
-    id: "4",
-    transactionId: "TXN-2024-004",
-    type: "expense",
-    status: "completed",
-    amount: 8000,
-    description: "Office rent - November",
-    vendor: "Property Management",
-    paymentMethod: "Bank Transfer",
-    reference: "RENT-NOV",
-    date: "2024-11-12",
-    reconciled: true,
-    category: "Operating Expenses",
-  },
-  {
-    id: "5",
-    transactionId: "TXN-2024-005",
-    type: "sale",
-    status: "failed",
-    amount: 12000,
-    description: "Online order - Payment failed",
-    customer: "Hassan Malik",
-    paymentMethod: "Credit Card",
-    date: "2024-11-11",
-    reconciled: false,
-    category: "Sales",
-  },
-  {
-    id: "6",
-    transactionId: "TXN-2024-006",
-    type: "sale",
-    status: "reconciled",
-    amount: 28000,
-    description: "Corporate order - Office supplies",
-    customer: "XYZ Corporation",
-    paymentMethod: "Bank Transfer",
-    reference: "INV-456",
-    date: "2024-11-10",
-    reconciled: true,
-    category: "Sales",
-  },
-  {
-    id: "7",
-    transactionId: "TXN-2024-007",
-    type: "expense",
-    status: "completed",
-    amount: 3500,
-    description: "Utility bills - Electricity",
-    vendor: "K-Electric",
-    paymentMethod: "Online Banking",
-    reference: "BILL-789",
-    date: "2024-11-10",
-    reconciled: false,
-    category: "Utilities",
-  },
-  {
-    id: "8",
-    transactionId: "TXN-2024-008",
-    type: "purchase",
-    status: "completed",
-    amount: 67000,
-    description: "Equipment purchase - New machinery",
-    vendor: "Industrial Equipment Co",
-    paymentMethod: "Cheque",
-    reference: "CHQ-321",
-    date: "2024-11-09",
-    reconciled: true,
-    category: "Capital Expenditure",
-  },
-];
-
 export default function TransactionsPage() {
-  const [transactions] = useState<Transaction[]>(demoTransactions);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TransactionType | "all">("all");
   const [statusFilter, setStatusFilter] = useState<TransactionStatus | "all">("all");
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+
+  async function loadTransactions() {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append("q", searchQuery);
+      if (statusFilter !== "all") params.append("status", statusFilter);
+      if (typeFilter !== "all") params.append("method", typeFilter);
+      
+      const res = await fetch(`/api/admin/transactions?${params.toString()}`, { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed to load transactions");
+      
+      const mapped: Transaction[] = (data.transactions || []).map((t: any) => {
+        // Determine payment method display
+        let methodDisplay = t.method || "unknown";
+        const paymentGateway = t.payment_gateway || t.paymentGateway;
+        if (paymentGateway === "paypal") {
+          methodDisplay = "PayPal";
+        } else if (paymentGateway === "stripe") {
+          methodDisplay = "Stripe";
+        } else if (paymentGateway === "powertranz") {
+          methodDisplay = "PowerTranz";
+        }
+
+        return {
+          id: t.id,
+          transactionId: t.reference || t.gateway_id || t.id,
+          type: t.method === "refund" ? "refund" : "sale" as TransactionType,
+          status: t.status as TransactionStatus,
+          amount: t.amount || 0,
+          description: `Payment - ${t.tracking_number || t.user_code || "Transaction"}`,
+          customer: t.user_code || undefined,
+          paymentMethod: methodDisplay,
+          reference: t.reference || t.gateway_id || undefined,
+          date: t.created_at || new Date().toISOString(),
+          reconciled: t.status === "captured" || t.status === "completed",
+          category: t.method === "refund" ? "Refunds" : paymentGateway === "paypal" ? "PayPal Payments" : "Sales",
+        };
+      });
+      
+      setTransactions(mapped);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load transactions");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadTransactions();
+  }, [searchQuery, statusFilter, typeFilter]);
 
   const getTypeStyle = (type: TransactionType) => {
     switch (type) {
@@ -160,13 +102,19 @@ export default function TransactionsPage() {
   const getStatusStyle = (status: TransactionStatus) => {
     switch (status) {
       case "completed":
+      case "captured":
         return { bg: "bg-green-50", text: "text-green-700", border: "border-green-200", icon: CheckCircle };
       case "pending":
+      case "authorized":
         return { bg: "bg-yellow-50", text: "text-yellow-700", border: "border-yellow-200", icon: Clock };
       case "failed":
         return { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", icon: XCircle };
       case "reconciled":
         return { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200", icon: CheckCircle };
+      case "refunded":
+        return { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200", icon: XCircle };
+      default:
+        return { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200", icon: AlertCircle };
     }
   };
 
@@ -181,10 +129,10 @@ export default function TransactionsPage() {
   });
 
   const stats = {
-    totalRevenue: transactions.filter(t => t.type === "sale" && t.status === "completed").reduce((sum, t) => sum + t.amount, 0),
-    totalExpenses: transactions.filter(t => (t.type === "expense" || t.type === "purchase") && t.status === "completed").reduce((sum, t) => sum + t.amount, 0),
-    totalRefunds: transactions.filter(t => t.type === "refund" && t.status === "completed").reduce((sum, t) => sum + t.amount, 0),
-    pending: transactions.filter(t => t.status === "pending").length,
+    totalRevenue: transactions.filter(t => t.type === "sale" && (t.status === "completed" || t.status === "captured")).reduce((sum, t) => sum + t.amount, 0),
+    totalExpenses: transactions.filter(t => (t.type === "expense" || t.type === "purchase") && (t.status === "completed" || t.status === "captured")).reduce((sum, t) => sum + t.amount, 0),
+    totalRefunds: transactions.filter(t => (t.type === "refund" || t.status === "refunded") && (t.status === "completed" || t.status === "captured" || t.status === "refunded")).reduce((sum, t) => sum + t.amount, 0),
+    pending: transactions.filter(t => t.status === "pending" || t.status === "authorized").length,
     unreconciled: transactions.filter(t => !t.reconciled).length,
   };
 
@@ -207,72 +155,81 @@ export default function TransactionsPage() {
                   View, reconcile, and manage all financial transactions
                 </p>
               </div>
+              
+              <button 
+                onClick={loadTransactions}
+                disabled={loading}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-md backdrop-blur transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50"
+              >
+                <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </button>
             </div>
 
             {/* Stats Cards inside header */}
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
 
               {/* Total Revenue */}
-              <div className="group relative overflow-hidden rounded-xl bg-green-500/20 p-5 shadow-md backdrop-blur">
-                <div className="relative flex items-center gap-4">
-                  <div className="rounded-lg bg-white/20 p-3">
-                    <TrendingUp className="h-6 w-6 text-white" />
+              <div className="group relative overflow-hidden rounded-xl bg-green-500/20 p-4 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-3">
+                  <div className="rounded-lg bg-white/20 p-2.5 flex-shrink-0">
+                    <TrendingUp className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-sm text-green-100">Total Revenue</p>
-                    <p className="mt-1 text-2xl font-bold">PKR {stats.totalRevenue.toLocaleString()}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-green-100 truncate">Total Revenue</p>
+                    <p className="mt-0.5 text-lg font-bold truncate">PKR {stats.totalRevenue.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {/* Total Expenses */}
-              <div className="group relative overflow-hidden rounded-xl bg-red-500/20 p-5 shadow-md backdrop-blur">
-                <div className="relative flex items-center gap-4">
-                  <div className="rounded-lg bg-white/20 p-3">
-                    <TrendingDown className="h-6 w-6 text-white" />
+              <div className="group relative overflow-hidden rounded-xl bg-red-500/20 p-4 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-3">
+                  <div className="rounded-lg bg-white/20 p-2.5 flex-shrink-0">
+                    <TrendingDown className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-sm text-red-100">Total Expenses</p>
-                    <p className="mt-1 text-2xl font-bold">PKR {stats.totalExpenses.toLocaleString()}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-red-100 truncate">Total Expenses</p>
+                    <p className="mt-0.5 text-lg font-bold truncate">PKR {stats.totalExpenses.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {/* Total Refunds */}
-              <div className="group relative overflow-hidden rounded-xl bg-orange-500/20 p-5 shadow-md backdrop-blur">
-                <div className="relative flex items-center gap-4">
-                  <div className="rounded-lg bg-white/20 p-3">
-                    <Receipt className="h-6 w-6 text-white" />
+              <div className="group relative overflow-hidden rounded-xl bg-orange-500/20 p-4 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-3">
+                  <div className="rounded-lg bg-white/20 p-2.5 flex-shrink-0">
+                    <Receipt className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-sm text-orange-100">Total Refunds</p>
-                    <p className="mt-1 text-2xl font-bold">PKR {stats.totalRefunds.toLocaleString()}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-orange-100 truncate">Total Refunds</p>
+                    <p className="mt-0.5 text-lg font-bold truncate">PKR {stats.totalRefunds.toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {/* Pending */}
-              <div className="group relative overflow-hidden rounded-xl bg-yellow-500/20 p-5 shadow-md backdrop-blur">
-                <div className="relative flex items-center gap-4">
-                  <div className="rounded-lg bg-white/20 p-3">
-                    <Clock className="h-6 w-6 text-white" />
+              <div className="group relative overflow-hidden rounded-xl bg-yellow-500/20 p-4 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-3">
+                  <div className="rounded-lg bg-white/20 p-2.5 flex-shrink-0">
+                    <Clock className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-sm text-yellow-100">Pending</p>
-                    <p className="mt-1 text-2xl font-bold">{stats.pending}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-yellow-100 truncate">Pending</p>
+                    <p className="mt-0.5 text-lg font-bold truncate">{stats.pending}</p>
                   </div>
                 </div>
               </div>
 
               {/* Unreconciled */}
-              <div className="group relative overflow-hidden rounded-xl bg-white/10 p-5 shadow-md backdrop-blur">
-                <div className="relative flex items-center gap-4">
-                  <div className="rounded-lg bg-white/20 p-3">
-                    <AlertCircle className="h-6 w-6 text-white" />
+              <div className="group relative overflow-hidden rounded-xl bg-white/10 p-4 shadow-md backdrop-blur">
+                <div className="relative flex items-center gap-3">
+                  <div className="rounded-lg bg-white/20 p-2.5 flex-shrink-0">
+                    <AlertCircle className="h-5 w-5 text-white" />
                   </div>
-                  <div>
-                    <p className="text-sm text-blue-100">Unreconciled</p>
-                    <p className="mt-1 text-2xl font-bold">{stats.unreconciled}</p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-blue-100 truncate">Unreconciled</p>
+                    <p className="mt-0.5 text-lg font-bold truncate">{stats.unreconciled}</p>
                   </div>
                 </div>
               </div>
@@ -280,6 +237,55 @@ export default function TransactionsPage() {
             </div>
           </div>
         </header>
+
+        {/* PayPal Setup Section */}
+        <div className="bg-white rounded-xl shadow-lg border border-slate-200 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-blue-50 p-2">
+                <Settings className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">PayPal Integration</h3>
+                <p className="text-sm text-gray-500">PayPal payments are processed in real-time</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Status:</span>
+              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                Active
+              </span>
+            </div>
+          </div>
+          <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700 mb-2">
+              PayPal is configured and ready. All PayPal transactions are automatically recorded in the system.
+            </p>
+            <div className="flex items-center gap-4 text-xs text-blue-600 mb-3">
+              <span>• Real-time transaction sync</span>
+              <span>• Automatic payment capture</span>
+              <span>• Secure payment processing</span>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/admin/paypal/test", { cache: "no-store" });
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    alert(`✅ PayPal connection test successful!\n\nEnvironment: ${data.environment}\nOrder ID: ${data.orderId}`);
+                  } else {
+                    alert(`❌ PayPal test failed: ${data.message || data.error}\n\n${data.details || ""}`);
+                  }
+                } catch (e) {
+                  alert(`❌ PayPal test error: ${e instanceof Error ? e.message : "Unknown error"}`);
+                }
+              }}
+              className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+            >
+              Test PayPal Connection
+            </button>
+          </div>
+        </div>
 
         {/* Search and Filter */}
         <div className="bg-white rounded-xl shadow-md border border-slate-200 p-5">
@@ -344,7 +350,22 @@ export default function TransactionsPage() {
           </div>
 
           <div className="divide-y divide-slate-200">
-            {filteredTransactions.length === 0 ? (
+            {loading ? (
+              <div className="p-12">
+                <AdminLoading message="Loading transactions..." />
+              </div>
+            ) : error ? (
+              <div className="text-center py-12">
+                <AlertCircle className="w-12 h-12 text-red-300 mx-auto mb-3" />
+                <p className="text-red-500 font-medium">{error}</p>
+                <button 
+                  onClick={loadTransactions}
+                  className="mt-4 px-4 py-2 rounded-lg bg-[#0f4d8a] text-white hover:bg-[#0e447d] transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredTransactions.length === 0 ? (
               <div className="text-center py-12">
                 <DollarSign className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-500 font-medium">No transactions found</p>

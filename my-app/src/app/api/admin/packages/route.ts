@@ -60,17 +60,21 @@ export async function GET(req: Request) {
     }, {} as Record<string, number>);
 
     const formattedPackages = packages.map(p => ({
+      id: p.id,
       tracking_number: p.trackingNumber,
       customer_name: p.user.name,
       customer_id: p.user.id,
       status: p.status,
       current_location: p.currentLocation || undefined,
+      branch: p.currentLocation || undefined,
       weight: p.weight,
       dimensions: p.length && p.width && p.height 
         ? `${p.length}×${p.width}×${p.height} cm` 
         : undefined,
       description: p.itemDescription || undefined,
       received_date: p.createdAt.toISOString(),
+      created_at: p.createdAt.toISOString(),
+      updated_at: p.updatedAt.toISOString(),
     }));
 
     return NextResponse.json({ 
@@ -100,16 +104,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
     }
 
-    const { tracking_number, user_id, weight, description } = body;
+    const { tracking_number, user_id, user_code, weight, description, branch } = body;
 
-    if (!tracking_number || !user_id) {
+    if (!tracking_number || (!user_id && !user_code)) {
       return NextResponse.json(
-        { error: "tracking_number and user_id are required" }, 
+        { error: "tracking_number and either user_id or user_code are required" }, 
         { status: 400 }
       );
     }
 
-    const user = await prisma.user.findUnique({ where: { id: user_id } });
+    let user;
+    if (user_id) {
+      user = await prisma.user.findUnique({ where: { id: user_id } });
+    } else if (user_code) {
+      user = await prisma.user.findFirst({ where: { userCode: user_code } });
+    }
+    
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
@@ -127,17 +137,17 @@ export async function POST(req: Request) {
     const created = await prisma.package.create({
       data: {
         trackingNumber: tracking_number,
-        userId: user_id,
+        userId: user.id,
         weight: weight || 0,
         itemDescription: description,
-        status: "pending",
+        status: "At Warehouse",
         senderName: "Warehouse",
         senderPhone: "",
         senderAddress: "",
         senderCity: "",
         senderState: "",
         senderZipCode: "",
-        receiverName: user.name,
+        receiverName: user.name || "",
         receiverPhone: user.phone || "",
         receiverAddress: user.address || "",
         receiverCity: user.city || "",
@@ -147,7 +157,8 @@ export async function POST(req: Request) {
         deliveryType: "standard",
         shippingCost: 0,
         totalAmount: 0,
-        paymentMethod: "cash"
+        paymentMethod: "cash",
+        currentLocation: branch || undefined,
       }
     });
 
