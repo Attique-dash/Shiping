@@ -17,7 +17,6 @@ import {
   Inbox,
   CreditCard,
   BarChart3,
-  BookOpen,
   ChevronRight,
   Menu,
   X,
@@ -182,10 +181,9 @@ export default function AdminLayout({
 
           {/* Navigation - Scrollable */}
           <style jsx global>{`
-            /* Custom scrollbar for WebKit browsers - Overlay style, no layout shift */
+            /* Custom scrollbar for WebKit browsers */
             .sidebar-scrollbar {
               overflow-y: auto;
-              scrollbar-gutter: stable;
             }
             .sidebar-scrollbar::-webkit-scrollbar {
               width: 6px;
@@ -208,12 +206,13 @@ export default function AdminLayout({
               scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
             }
           `}</style>
-          <nav className="flex-1 overflow-y-auto space-y-1 p-4 pr-2 sidebar-scrollbar" style={{ scrollbarGutter: 'stable', minHeight: 0 }}>
+          <nav className="flex-1 overflow-y-auto space-y-1 p-4 pr-2 sidebar-scrollbar">
             {navItems.map((item) => {
               const Icon = item.icon;
+              const currentPath = pathname || "";
               const isActive = item.href === "/admin"
-                ? pathname === "/admin"
-                : (pathname === item.href || pathname.startsWith(item.href + "/"));
+                ? currentPath === "/admin"
+                : (currentPath === item.href || currentPath.startsWith(item.href + "/"));
 
               return (
                 <Link
@@ -312,9 +311,10 @@ export default function AdminLayout({
               <nav className="space-y-1 p-4 overflow-y-auto h-[calc(100vh-140px)] sidebar-scrollbar">
                 {navItems.map((item) => {
                   const Icon = item.icon;
+                  const currentPath = pathname || "";
                   const isActive = item.href === "/admin"
-                    ? pathname === "/admin"
-                    : (pathname === item.href || pathname.startsWith(item.href + "/"));
+                    ? currentPath === "/admin"
+                    : (currentPath === item.href || currentPath.startsWith(item.href + "/"));
                   return (
                     <Link
                       key={item.href}

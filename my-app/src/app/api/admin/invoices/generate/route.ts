@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // Create invoice
+    // Create invoice (map items to schema shape)
     const invoice = await GeneratedInvoice.create({
       invoiceNumber: validated.invoice_number,
       customerId: validated.customer_id,
@@ -61,7 +61,12 @@ export async function POST(req: Request) {
       customerEmail: validated.customer_email,
       issueDate: new Date(validated.issue_date),
       dueDate: validated.due_date ? new Date(validated.due_date) : undefined,
-      items: validated.items,
+      items: validated.items.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+        total: item.total,
+      })),
       subtotal: validated.subtotal,
       discountPercentage: validated.discount_percentage,
       discountAmount: validated.discount_amount,
@@ -97,7 +102,7 @@ export async function POST(req: Request) {
       invoice_id: invoice._id,
       invoice_number: invoice.invoiceNumber,
     });
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: "Invalid input", details: error.errors },
@@ -106,7 +111,7 @@ export async function POST(req: Request) {
     }
     console.error("Invoice generation error:", error);
     return NextResponse.json(
-      { error: "Failed to generate invoice" },
+      { error: error?.message || "Failed to generate invoice" },
       { status: 500 }
     );
   }

@@ -48,8 +48,16 @@ export default function AddForm() {
   async function loadCustomers() {
     setLoadingCustomers(true);
     try {
-      const res = await fetch("/api/admin/customers", { cache: "no-store" });
+      const res = await fetch("/api/admin/customers", { 
+        cache: "no-store",
+        credentials: 'include',
+      });
       const data = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load customers:", data?.error);
+        setCustomers([]);
+        return;
+      }
       const list = Array.isArray(data?.customers)
         ? data.customers
         : Array.isArray(data?.items)
@@ -59,13 +67,14 @@ export default function AddForm() {
         : [];
       const mapped = list.map((c: { customer_id?: string; _id?: string; id?: string; userCode?: string; user_code?: string; full_name?: string; firstName?: string; lastName?: string; email?: string }) => ({
         id: String(c.customer_id ?? c._id ?? c.id ?? c.userCode ?? Math.random()),
-        name: c.full_name ?? `${c.firstName || ''} ${c.lastName || ''}`.trim() ?? c.email ?? c.userCode ?? "Customer",
+        name: c.full_name ?? `${c.firstName || ''} ${c.lastName || ''}`.trim() || c.email || c.userCode || "Customer",
         userCode: c.userCode || c.user_code || "",
         email: c.email,
-      }));
+      })).filter(c => c.userCode); // Only include customers with userCode
       setCustomers(mapped);
     } catch (err) {
       console.error("Failed to load customers:", err);
+      setCustomers([]);
     } finally {
       setLoadingCustomers(false);
     }
@@ -144,6 +153,7 @@ export default function AddForm() {
       const res = await fetch("/api/admin/packages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
       const j = await res.json().catch(() => ({}));

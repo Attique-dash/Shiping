@@ -144,7 +144,6 @@ export default function CustomersPageClient() {
       country: "",
       status: "Active",
       emailVerified: "Yes",
-      accountType: "Basic",
       branch: "",
       serviceTypeIDs: "",
     });
@@ -166,7 +165,6 @@ export default function CustomersPageClient() {
       country: c.country || "",
       status: c.status || "Active",
       emailVerified: (c.emailVerified ? "Yes" : "No") as "Yes" | "No",
-      accountType: c.accountType || "Basic",
       branch: c.branch || "",
       serviceTypeIDs: (c.serviceTypeIDs || []).join(","),
     });
@@ -213,7 +211,6 @@ export default function CustomersPageClient() {
       },
       status: form.status,
       emailVerified: form.emailVerified === "Yes",
-      accountType: form.accountType,
       serviceTypeIDs: form.serviceTypeIDs
         ? form.serviceTypeIDs
             .split(",")
@@ -229,11 +226,17 @@ export default function CustomersPageClient() {
     const res = await fetch("/api/admin/customers", {
       method,
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify(body),
     });
     const data = await res.json();
     if (!res.ok) {
-      alert(data?.error || "Request failed");
+      const errorMsg = data?.error || data?.message || "Request failed";
+      if (typeof errorMsg === 'object' && errorMsg.fieldErrors) {
+        alert(`Validation error: ${JSON.stringify(errorMsg.fieldErrors)}`);
+      } else {
+        alert(errorMsg);
+      }
       return;
     }
     setShowForm(false);
@@ -265,7 +268,6 @@ export default function CustomersPageClient() {
     total: items.length,
     verified: items.filter((c) => c.emailVerified).length,
     active: items.filter((c) => (c.status || "active").toLowerCase() === "active").length,
-    premium: items.filter((c) => (c.accountType || "").toLowerCase() === "premium").length,
   };
 
   return (
@@ -336,21 +338,6 @@ export default function CustomersPageClient() {
           <div>
             <p className="text-sm text-orange-100">Active</p>
             <p className="mt-1 text-2xl font-bold">{stats.active}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Premium */}
-      <div className="group relative overflow-hidden rounded-xl bg-purple-500/20 p-5 shadow-md backdrop-blur">
-        <div className="relative flex items-center gap-4">
-          <div className="rounded-lg bg-white/20 p-3">
-            <svg className="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm text-purple-100">Premium</p>
-            <p className="mt-1 text-2xl font-bold">{stats.premium}</p>
           </div>
         </div>
       </div>
@@ -799,18 +786,6 @@ export default function CustomersPageClient() {
                       <option>No</option>
                     </select>
                   </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-medium text-gray-700">Account Type</label>
-                    <select
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-[#0f4d8a] focus:outline-none focus:ring-2 focus:ring-[#0f4d8a]/20"
-                      value={form.accountType}
-                      onChange={(e) => setForm({ ...form, accountType: e.target.value })}
-                    >
-                      <option>Basic</option>
-                      <option>Premium</option>
-                      <option>Enterprise</option>
-                    </select>
-                  </div>
                 </div>
               </div>
 
@@ -911,18 +886,23 @@ export default function CustomersPageClient() {
               id="message-form"
               onSubmit={async (e) => {
                 e.preventDefault();
+                if (!showMessage.userCode || !messageForm.body.trim()) {
+                  alert("User code and message body are required");
+                  return;
+                }
                 const res = await fetch("/api/admin/messages", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
+                  credentials: 'include',
                   body: JSON.stringify({
                     user_code: showMessage.userCode,
-                    subject: messageForm.subject,
-                    body: messageForm.body,
+                    subject: messageForm.subject.trim() || undefined,
+                    body: messageForm.body.trim(),
                   }),
                 });
                 const j = await res.json().catch(() => ({}));
                 if (!res.ok) {
-                  alert(j?.error || "Failed to send");
+                  alert(j?.error || j?.message || "Failed to send message");
                   return;
                 }
                 alert("Message sent successfully!");

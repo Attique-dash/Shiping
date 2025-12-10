@@ -182,3 +182,105 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Failed to create package" }, { status: 500 });
   }
 }
+
+export async function PUT(req: Request) {
+  const payload = await getAuthFromRequest(req);
+  if (!payload || payload.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    }
+
+    const { id, status, weight, description, branch, length, width, height } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Package ID is required" }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (status !== undefined) updateData.status = status;
+    if (weight !== undefined) updateData.weight = weight;
+    if (description !== undefined) updateData.itemDescription = description;
+    if (branch !== undefined) updateData.currentLocation = branch;
+    if (length !== undefined) updateData.length = length;
+    if (width !== undefined) updateData.width = width;
+    if (height !== undefined) updateData.height = height;
+
+    const updated = await prisma.package.update({
+      where: { id },
+      data: updateData
+    });
+
+    // Create audit log
+    await prisma.audit.create({
+      data: {
+        packageId: updated.id,
+        status: updated.status,
+        description: `Package updated by admin: ${Object.keys(updateData).join(', ')}`,
+        performedBy: payload.email
+      }
+    });
+
+    return NextResponse.json({ 
+      ok: true, 
+      id: updated.id, 
+      tracking_number: updated.trackingNumber 
+    });
+  } catch (error: any) {
+    console.error("Error updating package:", error);
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: "Package not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Failed to update package" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  const payload = await getAuthFromRequest(req);
+  if (!payload || payload.role !== "admin") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Package ID is required" }, { status: 400 });
+    }
+
+    // Soft delete by setting status to "Deleted"
+    const updated = await prisma.package.update({
+      where: { id },
+      data: { status: "Deleted" }
+    });
+
+    // Create audit log
+    await prisma.audit.create({
+      data: {
+        packageId: updated.id,
+        status: "Deleted",
+        description: "Package deleted by admin",
+        performedBy: payload.email
+      }
+    });
+
+    return NextResponse.json({ 
+      ok: true, 
+      id: updated.id, 
+      message: "Package deleted successfully" 
+    });
+  } catch (error: any) {
+    console.error("Error deleting package:", error);
+    if (error.code === 'P2025') {
+      return NextResponse.json({ error: "Package not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: "Failed to delete package" }, { status: 500 });
+  }
+}

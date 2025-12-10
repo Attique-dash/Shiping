@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthFromRequest } from "@/lib/rbac";
 import { prisma } from "@/lib/prisma";
+import { dbConnect } from "@/lib/db";
+import { Payment } from "@/models/Payment";
 import * as paypal from "@paypal/checkout-server-sdk";
 
 // PayPal client setup
@@ -46,28 +48,55 @@ export async function POST(req: Request) {
     const capture = await client.execute(request);
 
     if (capture.statusCode === 201 && capture.result) {
+      await dbConnect();
+      
       const captureId = capture.result.id;
-      const amount = capture.result.purchase_units[0]?.payments?.captures[0]?.amount?.value;
+      const amount = parseFloat(capture.result.purchase_units[0]?.payments?.captures[0]?.amount?.value || "0");
+      const currency = capture.result.purchase_units[0]?.payments?.captures[0]?.amount?.currency_code || "USD";
 
-      // Update payment status
-      await prisma.payment.updateMany({
-        where: {
-          transactionId: orderId,
-        },
-        data: {
-          status: "completed",
-          paidAt: new Date(),
-          metadata: {
-            captureId,
-            paypalOrderId: orderId,
-          },
+      // Create Payment record in MongoDB
+      const payment = new Payment({
+        userCode: capture.result.purchase_units[0]?.custom_id || `PAYPAL-${Date.now()}`,
+        amount: amount,
+        currency: currency,
+        method: "wallet" as const, // PayPal is a wallet method
+        reference: captureId,
+        gatewayId: orderId,
+        status: "captured" as const,
+        meta: {
+          captureId,
+          paypalOrderId: orderId,
+          paypalCapture: capture.result,
         },
       });
+      await payment.save();
+
+      // Also update Prisma payment if exists
+      try {
+        await prisma.payment.updateMany({
+          where: {
+            transactionId: orderId,
+          },
+          data: {
+            status: "completed",
+            paidAt: new Date(),
+            metadata: {
+              captureId,
+              paypalOrderId: orderId,
+            },
+          },
+        });
+      } catch (prismaError) {
+        // Prisma update is optional, continue even if it fails
+        console.warn("Prisma payment update failed:", prismaError);
+      }
 
       return NextResponse.json({
         success: true,
         captureId,
         amount,
+        currency,
+        paymentId: payment._id,
       });
     } else {
       throw new Error("Failed to capture PayPal order");

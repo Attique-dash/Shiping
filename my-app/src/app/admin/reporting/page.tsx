@@ -42,12 +42,22 @@ export default function AnalyticsDashboard() {
     setLoading(true);
     try {
       const res = await fetch(`/api/admin/analytics?range=${timeRange}`);
-      if (res.ok) {
-        const json = await res.json();
-        setData(json);
+      const json = await res.json();
+      
+      if (!res.ok) {
+        if (json.code === 'MEMORY_ERROR') {
+          console.error('Memory error:', json.error);
+          // Show error but don't crash
+          alert('Data set too large. Please try a shorter time range (7d or 30d).');
+          return;
+        }
+        throw new Error(json.error || 'Failed to load analytics');
       }
+      
+      setData(json);
     } catch (e) {
-      console.error(e);
+      console.error('Error loading analytics:', e);
+      // Don't set data on error to prevent crashes
     } finally {
       setLoading(false);
     }

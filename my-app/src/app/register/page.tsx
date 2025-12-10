@@ -1,88 +1,229 @@
-"use client";
+'use client';
 
-import Link from "next/link";
-import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
-import { components, SingleValueProps, OptionProps, ControlProps } from "react-select";
-import "react-phone-input-2/lib/style.css";
-import countryList from "react-select-country-list";
-import CountryFlag from "react-country-flag";
-
-type CountryOption = { value: string; label: string };
-import { FaEye, FaEyeSlash, FaUser, FaEnvelope, FaLock, FaMapMarkerAlt, FaCity, FaFlag, FaMailBulk, FaPlane, FaCheckCircle } from "react-icons/fa";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { FaUser, FaEnvelope, FaLock, FaArrowRight, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [form, setForm] = useState({
-    fullName: "",
+    name: "",
     email: "",
-    phoneNo: "",
     password: "",
     confirmPassword: "",
-    adress: "",
-    city: "",
-    state: "",
-    zip_code: "",
-    country: "JM",
-    agree: false,
   });
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [showToast, setShowToast] = useState<{
-    type: "error" | "success";
-    msg: string;
-  } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  const countryOptions: CountryOption[] = useMemo(() => countryList().getData() as CountryOption[], []);
-  // Avoid SSR for react-select to prevent hydration ID mismatches
-  const ReactSelect = useMemo(() => dynamic(() => import("react-select"), { ssr: false }) as unknown as React.ComponentType<any>, []);
-  // Phone input (client-only)
-  const PhoneInput = useMemo(
-    () => dynamic(() => import("react-phone-input-2"), { ssr: false }),
-    []
-  );
-  const [phoneMeta, setPhoneMeta] = useState<{ dialCode: string; countryCode: string }>({ dialCode: "1876", countryCode: "jm" });
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  function validate(): string | null {
-    const digits = form.phoneNo.replace(/\D/g, "");
-    const dial = phoneMeta.dialCode || "";
-    if (!digits.startsWith(dial)) return "Phone must start with selected country code";
-    const local = digits.slice(dial.length);
-    if (local.length !== 10) return "Enter exactly 10 digits after country code";
-    if (form.password.length < 6)
-      return "Password must be at least 6 characters";
-    if (form.password !== form.confirmPassword) return "Passwords do not match";
-    if (!form.agree) return "You must agree to Terms & Privacy";
-    return null;
-  }
-
-  useEffect(() => {
-    if (error) {
-      setShowToast({ type: "error", msg: error });
-      const t = setTimeout(() => setShowToast(null), 3000);
-      return () => clearTimeout(t);
+  const validate = (): boolean => {
+    if (!form.name.trim()) {
+      toast.error('Name is required');
+      return false;
     }
-  }, [error]);
-
-  useEffect(() => {
-    if (success) {
-      setShowToast({ type: "success", msg: success });
-      const t = setTimeout(() => setShowToast(null), 3000);
-      return () => clearTimeout(t);
+    if (!form.email.trim()) {
+      toast.error('Email is required');
+      return false;
     }
-  }, [success]);
+    if (!/\S+@\S+\.\S+/.test(form.email)) {
+      toast.error('Please enter a valid email address');
+      return false;
+    }
+    if (!form.password) {
+      toast.error('Password is required');
+      return false;
+    }
+    if (form.password.length < 6) {
+      toast.error('Password must be at least 6 characters long');
+      return false;
+    }
+    if (form.password !== form.confirmPassword) {
+      toast.error('Passwords do not match');
+      return false;
+    }
+    return true;
+  };
 
-  async function onSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!validate()) return;
+
     setLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          confirmPassword: form.confirmPassword,
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+
+      // Redirect to details page with user ID
+      router.push(`/register/${data.userId}/details`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Registration failed';
+      toast.error(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-[#0E7893] via-[#1a9bb8] to-[#E67919] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-lg shadow-xl overflow-hidden">
+          <div className="p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-bold text-gray-800">Create Account</h1>
+              <p className="text-gray-600 mt-2">Sign up to get started</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaUser className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="name"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="John Doe"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaEnvelope className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="you@example.com"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaLock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? (
+                      <FaEyeSlash className="h-5 w-5" />
+                    ) : (
+                      <FaEye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FaLock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={form.confirmPassword}
+                    onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                    className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                    tabIndex={-1}
+                  >
+                    {showConfirmPassword ? (
+                      <FaEyeSlash className="h-5 w-5" />
+                    ) : (
+                      <FaEye className="h-5 w-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    'Creating Account...'
+                  ) : (
+                    <>
+                      Continue <FaArrowRight className="ml-2" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-sm text-gray-600">
+                Already have an account?{' '}
+                <Link href="/login" className="font-medium text-blue-600 hover:text-blue-500">
+                  Sign in
+                </Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
     setError(null);
     setSuccess(null);
     const v = validate();

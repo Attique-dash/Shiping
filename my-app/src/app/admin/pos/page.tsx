@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback, type ComponentType } from "react";
+import Image from "next/image";
 import {
   Activity,
   AlertCircle,
@@ -19,19 +20,29 @@ import {
   Trash2,
   User,
 } from "lucide-react";
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import toast, { Toaster } from "react-hot-toast";
 
 type Item = { sku?: string; product_id?: string; name?: string; qty: string; unit_price: string };
 
 type Txn = {
   id?: string;
   receipt_no: string;
+  customer_code?: string | null;
   subtotal: number;
   tax: number;
   total: number;
   method: string;
   created_at: string;
-  customer_code?: string | null;
   notes?: string | null;
+  items?: {
+    sku?: string;
+    productId?: string;
+    name?: string;
+    qty: number;
+    unitPrice?: number;
+    total: number;
+  }[];
 };
 
 type PosStats = {
@@ -97,6 +108,9 @@ export default function AdminPosPage() {
   const [syncing, setSyncing] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [showPayPal, setShowPayPal] = useState(false);
+  const [paypalOrderId, setPaypalOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/customers", { cache: "no-store" })
@@ -159,6 +173,13 @@ export default function AdminPosPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    
+    // If PayPal is selected, show PayPal button instead
+    if (method === "paypal") {
+      setShowPayPal(true);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
@@ -192,12 +213,246 @@ export default function AdminPosPage() {
       setSelected({});
       setCustomerCode("");
       setNotes("");
+      setShowPayPal(false);
       setTransactions((prev) => [data as Txn, ...prev].slice(0, 8));
       fetchPosData();
+      toast.success("Payment processed successfully!");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed");
+      const errorMsg = e instanceof Error ? e.message : "Failed";
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handlePayPalCreateOrder() {
+    try {
+      const items: Item[] = selectedServices.map((s) => ({
+        name: s.name,
+        qty: "1",
+        unit_price: String(s.amount),
+      }));
+
+      const res = await fetch("/api/admin/paypal/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: total,
+          currency: "USD",
+          description: `POS Payment - ${items.map(i => i.name).join(", ")}`,
+          customerCode: customerCode || undefined,
+          receiptNo: `POS-${Date.now()}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || "Failed to create PayPal order");
+      }
+
+      setPaypalOrderId(data.orderId);
+      return data.orderId;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "PayPal order creation failed");
+      throw error;
+    }
+  }
+
+  async function handlePayPalApprove(data: { orderID: string }) {
+    try {
+      setSubmitting(true);
+      
+      // Capture the PayPal order
+      const captureRes = await fetch("/api/admin/paypal/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: data.orderID }),
+      });
+
+      const captureData = await captureRes.json();
+      if (!captureRes.ok) {
+        throw new Error(captureData?.error || "Failed to capture PayPal payment");
+      }
+
+      // Create POS transaction record
+      const items: Item[] = selectedServices.map((s) => ({
+        name: s.name,
+        qty: "1",
+        unit_price: String(s.amount),
+      }));
+
+      const payload = {
+        customer_code: customerCode || undefined,
+        method: "paypal",
+        items: items.map((i) => ({
+          name: i.name || undefined,
+          qty: Number(i.qty),
+          unit_price: Number(i.unit_price),
+        })),
+        notes: notes || `PayPal Order: ${data.orderID}`,
+      };
+
+      const res = await fetch("/api/admin/pos/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const txnData = await res.json();
+      if (!res.ok) {
+        throw new Error(txnData?.error || "Failed to create transaction record");
+      }
+
+      setLastTxn(txnData as Txn);
+      setSelected({});
+      setCustomerCode("");
+      setNotes("");
+      setShowPayPal(false);
+      setPaypalOrderId(null);
+      setTransactions((prev) => [txnData as Txn, ...prev].slice(0, 8));
+      fetchPosData();
+      toast.success("PayPal payment processed successfully!");
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : "Payment failed";
+      setError(errorMsg);
+      toast.error(errorMsg);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function buildReceiptHtml(txn: Txn) {
+    const createdAt = txn.created_at ? new Date(txn.created_at) : new Date();
+    const items = txn.items ?? [];
+    const currency = "USD";
+
+    const rowsHtml =
+      items.length > 0
+        ? items
+            .map(
+              (it) => `
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;">${it.name || "Item"}</td>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:center;">${it.qty}</td>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(
+                it.unitPrice ?? 0
+              )}</td>
+              <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(
+                it.total
+              )}</td>
+            </tr>`
+            )
+            .join("")
+        : `
+        <tr>
+          <td colspan="4" style="padding:12px;text-align:center;color:#6b7280;font-size:12px;">
+            Line item details are not available for this receipt.
+          </td>
+        </tr>`;
+
+    return `<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charSet="utf-8" />
+        <title>Receipt ${txn.receipt_no}</title>
+      </head>
+      <body style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#f9fafb; padding:24px;">
+        <div style="max-width:640px;margin:0 auto;background:white;border-radius:12px;border:1px solid #e5e7eb;padding:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+            <div>
+              <div style="font-size:12px;letter-spacing:.15em;text-transform:uppercase;color:#6b7280;">Clean J Shipping</div>
+              <div style="font-size:20px;font-weight:700;color:#111827;margin-top:4px;">POS Receipt</div>
+            </div>
+            <div style="text-align:right;font-size:12px;color:#6b7280;">
+              <div><strong>Receipt #</strong> ${txn.receipt_no}</div>
+              <div><strong>Date</strong> ${createdAt.toLocaleString()}</div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:#4b5563;margin-bottom:16px;">
+            <div>
+              <div style="font-weight:600;margin-bottom:4px;">Customer</div>
+              <div>${txn.customer_code || "Walk-in Customer"}</div>
+            </div>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px;">Payment Method</div>
+              <div>${METHOD_LABELS[txn.method] || txn.method}</div>
+            </div>
+          </div>
+
+          <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;">
+            <thead>
+              <tr style="background:#f3f4f6;">
+                <th style="padding:8px;text-align:left;font-weight:600;color:#374151;">Description</th>
+                <th style="padding:8px;text-align:center;font-weight:600;color:#374151;">Qty</th>
+                <th style="padding:8px;text-align:right;font-weight:600;color:#374151;">Unit</th>
+                <th style="padding:8px;text-align:right;font-weight:600;color:#374151;">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+
+          <div style="border-top:1px solid #e5e7eb;margin-top:16px;padding-top:12px;font-size:13px;">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+              <div style="width:160px;display:flex;justify-content:space-between;">
+                <span style="color:#6b7280;">Subtotal</span>
+                <span style="font-weight:600;">${formatCurrency(txn.subtotal)}</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-bottom:4px;">
+              <div style="width:160px;display:flex;justify-content:space-between;">
+                <span style="color:#6b7280;">Tax</span>
+                <span style="font-weight:600;">${formatCurrency(txn.tax)}</span>
+              </div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:4px;">
+              <div style="width:160px;display:flex;justify-content:space-between;font-weight:700;font-size:15px;">
+                <span>Total</span>
+                <span>${formatCurrency(txn.total)}</span>
+              </div>
+            </div>
+          </div>
+
+          ${
+            txn.notes
+              ? `<div style="margin-top:16px;font-size:12px;color:#4b5563;">
+                   <div style="font-weight:600;margin-bottom:4px;">Notes</div>
+                   <div>${txn.notes}</div>
+                 </div>`
+              : ""
+          }
+
+          <div style="margin-top:24px;font-size:11px;color:#9ca3af;text-align:center;">
+            Thank you for your business!
+          </div>
+        </div>
+      </body>
+    </html>`;
+  }
+
+  function downloadReceiptForTxn(txn: Txn) {
+    const html = buildReceiptHtml(txn);
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `receipt-${txn.receipt_no}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadReceipt() {
+    if (!lastTxn) return;
+    try {
+      setIsDownloading(true);
+      downloadReceiptForTxn(lastTxn);
+    } finally {
+      setIsDownloading(false);
     }
   }
 
@@ -236,7 +491,9 @@ export default function AdminPosPage() {
   );
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
+    <>
+      <Toaster position="top-right" />
+      <div className="relative min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-40"
@@ -578,6 +835,16 @@ export default function AdminPosPage() {
                           <td className="px-6 py-4 text-xs text-gray-500">
                             {txn.created_at ? new Date(txn.created_at).toLocaleString() : "--"}
                           </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => downloadReceiptForTxn(txn)}
+                              className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                              <Download className="h-3 w-3" />
+                              Receipt
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -643,7 +910,10 @@ export default function AdminPosPage() {
                   <label className="text-sm font-semibold text-gray-700">Payment Method</label>
                   <select
                     value={method}
-                    onChange={(e) => setMethod(e.target.value)}
+                    onChange={(e) => {
+                      setMethod(e.target.value);
+                      setShowPayPal(false);
+                    }}
                     className="w-full rounded-xl border-2 border-gray-200 bg-white px-4 py-3 pr-10 text-sm font-medium text-gray-900 transition-all focus:border-[#0f4d8a] focus:outline-none focus:ring-2 focus:ring-[#0f4d8a]/20"
                   >
                     <option value="card">💳 Credit Card</option>
@@ -653,8 +923,52 @@ export default function AdminPosPage() {
                     <option value="amex">💳 American Express</option>
                     <option value="bank">🏦 Bank Transfer</option>
                     <option value="wallet">👛 Digital Wallet</option>
+                    <option value="paypal">🅿️ PayPal</option>
                   </select>
                 </div>
+
+                {showPayPal && method === "paypal" && (
+                  <div className="border-t border-gray-100 pt-4 space-y-3">
+                    <p className="text-sm font-semibold text-gray-700">Pay with PayPal</p>
+                    <PayPalScriptProvider
+                      options={{
+                        clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "",
+                        currency: "USD",
+                        intent: "capture",
+                      }}
+                    >
+                      <PayPalButtons
+                        createOrder={handlePayPalCreateOrder}
+                        onApprove={handlePayPalApprove}
+                        onError={(err) => {
+                          console.error("PayPal error:", err);
+                          toast.error("PayPal payment failed. Please try again.");
+                          setShowPayPal(false);
+                        }}
+                        onCancel={() => {
+                          toast.error("PayPal payment cancelled");
+                          setShowPayPal(false);
+                        }}
+                        style={{
+                          layout: "vertical",
+                          color: "blue",
+                          shape: "rect",
+                          label: "paypal",
+                        }}
+                      />
+                    </PayPalScriptProvider>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPayPal(false);
+                        setMethod("card");
+                      }}
+                      className="w-full text-sm text-gray-600 hover:text-gray-800 underline"
+                    >
+                      Cancel and use another payment method
+                    </button>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -747,29 +1061,37 @@ export default function AdminPosPage() {
         {lastTxn && (
           <div className="overflow-hidden rounded-3xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 shadow-2xl">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-green-200 bg-gradient-to-r from-green-100 to-emerald-100 px-6 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-600 text-white shadow-lg">
-                  <CheckCircle2 className="h-6 w-6" />
+              <div className="flex items-center gap-4">
+                <div className="relative h-12 w-12 overflow-hidden rounded-2xl bg-white shadow-lg flex items-center justify-center">
+                  <Image
+                    src="/images/Logo.png"
+                    alt="Clean J Shipping"
+                    width={48}
+                    height={48}
+                    className="h-10 w-10 object-contain"
+                  />
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-widest text-green-800">Receipt</p>
+                  <p className="text-xs uppercase tracking-widest text-green-800 flex items-center gap-1">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Receipt
+                  </p>
                   <h3 className="text-lg font-bold text-green-900">Transaction Successful #{lastTxn.receipt_no}</h3>
+                  <p className="text-xs text-green-900/80">
+                    {lastTxn.customer_code || "Walk-in Customer"} • {METHOD_LABELS[lastTxn.method] || lastTxn.method} •{" "}
+                    {new Date(lastTxn.created_at).toLocaleString()}
+                  </p>
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
-                  className="flex items-center gap-2 rounded-2xl border border-green-300 bg-white px-4 py-2 text-sm font-semibold text-green-700 hover:bg-green-50"
-                >
-                  <Printer className="h-4 w-4" />
-                  Print
-                </button>
-                <button
-                  type="button"
+                  onClick={handleDownloadReceipt}
+                  disabled={isDownloading}
                   className="flex items-center gap-2 rounded-2xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
                 >
                   <Download className="h-4 w-4" />
-                  Download
+                  {isDownloading ? "Downloading..." : "Download Receipt"}
                 </button>
               </div>
             </div>
@@ -783,6 +1105,7 @@ export default function AdminPosPage() {
         )}
       </div>
     </div>
+    </>
   );
 }
 

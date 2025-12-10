@@ -1,9 +1,9 @@
-// src/app/admin/unknown-packages/page.tsx
+// src/app/warehouse/unknown-packages/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 import {
   FaBox,
@@ -28,16 +28,16 @@ interface Package {
 }
 
 export default function UnknownPackagesPage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [packages, setPackages] = useState<Package[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Redirect if not authenticated or not admin
+  // Redirect if not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login');
+      router.push('/warehouse/login');
     }
   }, [status, router]);
 
@@ -182,7 +182,7 @@ export default function UnknownPackagesPage() {
                           </div>
                           {pkg.sender?.email && (
                             <div className="mt-1 flex items-center text-xs text-gray-400">
-                              <FaEnvelope className="mr-1" />
+                              <FaSearch className="mr-1" />
                               <span>{pkg.sender.email}</span>
                             </div>
                           )}

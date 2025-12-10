@@ -66,7 +66,6 @@ const GeneratedInvoiceSchema = new Schema<IGeneratedInvoice>(
   }
 );
 
-GeneratedInvoiceSchema.index({ invoiceNumber: 1 });
 GeneratedInvoiceSchema.index({ customerId: 1 });
 GeneratedInvoiceSchema.index({ status: 1 });
 GeneratedInvoiceSchema.index({ createdAt: -1 });

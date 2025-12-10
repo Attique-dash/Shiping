@@ -25,25 +25,123 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Create a new invoice (the pre-save hook will generate the invoice number)
-    const invoice = new Invoice({
-      ...data,
-      status: data.status || 'draft',
-      currency: data.currency || 'USD',
-      exchangeRate: data.exchangeRate || 1,
-      amountPaid: data.amountPaid || 0,
+    // Calculate subtotal from items
+    const subtotal = data.items.reduce((sum: number, item: any) => {
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unitPrice) || 0;
+      return sum + (qty * price);
+    }, 0);
+
+    // Calculate discount amount properly (handle NaN and missing values)
+    let discountAmount = 0;
+    if (data.discount && typeof data.discount === 'object') {
+      if (data.discount.type === 'percentage') {
+        const discountValue = Number(data.discount.value) || 0;
+        discountAmount = subtotal * (discountValue / 100);
+      } else if (data.discount.type === 'fixed') {
+        discountAmount = Number(data.discount.value) || 0;
+      }
+    } else if (typeof data.discountAmount === 'number' && !isNaN(data.discountAmount) && isFinite(data.discountAmount)) {
+      discountAmount = data.discountAmount;
+    }
+    // Ensure discountAmount is a valid number (never NaN or Infinity)
+    discountAmount = (isNaN(discountAmount) || !isFinite(discountAmount)) ? 0 : Math.max(0, discountAmount);
+    // Convert to number explicitly to avoid any type issues
+    discountAmount = Number(discountAmount) || 0;
+
+    // Calculate tax amounts for items if taxRate is provided
+    const itemsWithTax = data.items.map((item: any) => {
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.unitPrice) || 0;
+      const taxRate = Number(item.taxRate) || 0;
+      const amount = qty * price;
+      const taxAmount = amount * (taxRate / 100);
+      return {
+        description: item.description,
+        quantity: qty,
+        unitPrice: price,
+        taxRate: taxRate,
+        amount: Number(amount) || 0,
+        taxAmount: Number(taxAmount) || 0,
+        total: Number(amount + taxAmount) || 0,
+      };
     });
 
-    // Calculate totals
+    // Ensure dueDate is set (required field)
+    const issueDate = data.issueDate ? new Date(data.issueDate) : new Date();
+    const paymentTerms = Number(data.paymentTerms) || 30;
+    let dueDate = data.dueDate ? new Date(data.dueDate) : undefined;
+    if (!dueDate) {
+      dueDate = new Date(issueDate);
+      dueDate.setDate(dueDate.getDate() + paymentTerms);
+    }
+
+    // Create invoice data with proper calculations
+    // Don't include package at all if not provided (Mongoose will handle optional field)
+    const invoiceData: any = {
+      customer: data.customer,
+      items: itemsWithTax,
+      status: data.status || 'draft',
+      issueDate: issueDate,
+      dueDate: dueDate,
+      paymentTerms: paymentTerms,
+      currency: data.currency || 'USD',
+      exchangeRate: Number(data.exchangeRate) || 1,
+      amountPaid: Number(data.amountPaid) || 0,
+      notes: data.notes || undefined,
+      discountAmount: discountAmount, // Always a valid number (0 or positive)
+    };
+
+    // Only add discount if it exists
+    if (data.discount && typeof data.discount === 'object') {
+      invoiceData.discount = data.discount;
+    }
+
+    // Only add package if it exists and is a valid ObjectId
+    if (data.package) {
+      try {
+        invoiceData.package = new Types.ObjectId(data.package);
+      } catch (e) {
+        // Invalid ObjectId, skip it
+        console.warn('Invalid package ID provided:', data.package);
+      }
+    }
+
+    // Create a new invoice (the pre-save hook will generate the invoice number)
+    const invoice = new Invoice(invoiceData);
+
+    // Calculate totals (this will recalculate everything properly)
     invoice.calculateTotals();
+    
+    // Ensure all numeric fields are valid before saving
+    invoice.discountAmount = Number(invoice.discountAmount) || 0;
+    invoice.subtotal = Number(invoice.subtotal) || 0;
+    invoice.taxTotal = Number(invoice.taxTotal) || 0;
+    invoice.total = Number(invoice.total) || 0;
+    invoice.amountPaid = Number(invoice.amountPaid) || 0;
+    invoice.balanceDue = Number(invoice.balanceDue) || 0;
     
     await invoice.save();
 
     return NextResponse.json(invoice, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error creating invoice:', error);
+    
+    // Provide more detailed error message
+    let errorMessage = 'Failed to create invoice';
+    if (error?.message) {
+      errorMessage = error.message;
+    } else if (error?.errors) {
+      // Mongoose validation errors
+      const errorFields = Object.keys(error.errors);
+      const errorMessages = errorFields.map(field => {
+        return `${field}: ${error.errors[field].message}`;
+      });
+      errorMessage = errorMessages.join(', ');
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to create invoice' },
+      { error: errorMessage },
       { status: 500 }
     );
   }
@@ -101,14 +199,36 @@ export async function GET(req: NextRequest) {
         .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
         .skip(skip)
         .limit(limit)
-        .populate('package', 'tracking_number user_code')
+        .populate('package', 'trackingNumber userCode')
         .populate('shipment', 'trackingNumber status')
         .lean(),
       Invoice.countDocuments(query)
     ]);
 
+    // Format invoices for frontend
+    const formattedInvoices = invoices.map((inv: any) => ({
+      _id: inv._id.toString(),
+      invoiceNumber: inv.invoiceNumber,
+      status: inv.status,
+      issueDate: inv.issueDate?.toISOString() || new Date().toISOString(),
+      dueDate: inv.dueDate?.toISOString() || new Date().toISOString(),
+      currency: inv.currency || 'USD',
+      total: inv.total || 0,
+      amountPaid: inv.amountPaid || 0,
+      balanceDue: inv.balanceDue || inv.total || 0,
+      customer: inv.customer ? {
+        id: inv.customer.id || '',
+        name: inv.customer.name || '',
+        email: inv.customer.email || ''
+      } : undefined,
+      package: inv.package ? {
+        trackingNumber: inv.package.trackingNumber || inv.package.tracking_number,
+        userCode: inv.package.userCode || inv.package.user_code
+      } : undefined
+    }));
+
     return NextResponse.json({
-      data: invoices,
+      data: formattedInvoices,
       pagination: {
         total,
         page,

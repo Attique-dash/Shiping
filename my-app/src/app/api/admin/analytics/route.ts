@@ -26,6 +26,10 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+// Force dynamic rendering to prevent static generation
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET(req: Request) {
   console.log('Analytics endpoint called');
   const payload = await getAuthFromRequest(req);
@@ -44,15 +48,14 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const range = url.searchParams.get("range") || "all";
+  const range = url.searchParams.get("range") || "30d";
   console.log('Date range:', range);
 
   // Calculate date range
   const now = new Date();
-  const startDate = new Date(0); // Start from the beginning of time to get all data
+  let startDate = new Date();
   
-  console.log('Querying data with start date:', startDate);
-  
+  // Prevent loading all data - limit "all" to 1 year max to avoid memory issues
   switch (range) {
     case "7d":
       startDate.setDate(now.getDate() - 7);
@@ -66,9 +69,15 @@ export async function GET(req: Request) {
     case "1y":
       startDate.setFullYear(now.getFullYear() - 1);
       break;
+    case "all":
+      // Limit "all" to 1 year to prevent memory issues
+      startDate.setFullYear(now.getFullYear() - 1);
+      break;
     default:
       startDate.setDate(now.getDate() - 30);
   }
+  
+  console.log('Querying data with start date:', startDate);
 
   // Previous period for comparison
   const diff = now.getTime() - startDate.getTime();
@@ -144,7 +153,8 @@ export async function GET(req: Request) {
       Package.aggregate([
         { $match: { status: { $ne: "Deleted" }, createdAt: { $gte: startDate } }},
         { $group: { _id: "$status", count: { $sum: 1 }}},
-        { $sort: { count: -1 }}
+        { $sort: { count: -1 }},
+        { $limit: 20 } // Limit to prevent excessive results
       ]),
       // Packages by branch
       Package.aggregate([
@@ -153,24 +163,45 @@ export async function GET(req: Request) {
         { $sort: { count: -1 }},
         { $limit: 10 }
       ]),
-      // Top customers
+      // Top customers - optimized to avoid large lookups
       Package.aggregate([
-        { $match: { status: { $ne: "Deleted" }, createdAt: { $gte: startDate }}},
-        { $lookup: {
-          from: "users",
-          localField: "customer",
-          foreignField: "_id",
-          as: "customerData"
+        { $match: { 
+          status: { $ne: "Deleted" }, 
+          createdAt: { $gte: startDate },
+          customer: { $exists: true, $ne: null }
         }},
-        { $unwind: "$customerData" },
         { $group: {
           _id: "$customer",
-          name: { $first: { $concat: ["$customerData.firstName", " ", "$customerData.lastName"] }},
           packages: { $sum: 1 },
-          totalWeight: { $sum: "$weight" }
+          totalWeight: { $sum: { $ifNull: ["$weight", 0] } }
         }},
         { $sort: { packages: -1 }},
-        { $limit: 10 }
+        { $limit: 10 },
+        { $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "customerData",
+          pipeline: [
+            { $project: { 
+              firstName: 1, 
+              lastName: 1 
+            }}
+          ]
+        }},
+        { $unwind: { path: "$customerData", preserveNullAndEmptyArrays: true }},
+        { $project: {
+          _id: 1,
+          name: { 
+            $concat: [
+              { $ifNull: ["$customerData.firstName", ""] }, 
+              " ", 
+              { $ifNull: ["$customerData.lastName", "Unknown"] }
+            ]
+          },
+          packages: 1,
+          totalWeight: 1
+        }}
       ])
     ]);
 
@@ -227,32 +258,59 @@ export async function GET(req: Request) {
         : 0
     }));
 
-    // Revenue by month (last 6 months)
+    // Revenue by month (last 6 months) - optimized with single aggregation
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const [revenueByMonthData, packagesByMonthData] = await Promise.all([
+      Payment.aggregate([
+        { $match: { 
+          status: "captured", 
+          createdAt: { $gte: sixMonthsAgo }
+        }},
+        { $group: { 
+          _id: { 
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          total: { $sum: "$amount" }
+        }},
+        { $sort: { "_id.year": 1, "_id.month": 1 }}
+      ]),
+      Package.aggregate([
+        { $match: {
+          status: { $ne: "Deleted" },
+          createdAt: { $gte: sixMonthsAgo }
+        }},
+        { $group: {
+          _id: {
+            year: { $year: "$createdAt" },
+            month: { $month: "$createdAt" }
+          },
+          count: { $sum: 1 }
+        }},
+        { $sort: { "_id.year": 1, "_id.month": 1 }}
+      ])
+    ]);
+
+    // Build revenue by month array for last 6 months
     const revenueByMonth = [];
+    const revenueMap = new Map(
+      revenueByMonthData.map(r => [`${r._id.year}-${r._id.month}`, r.total])
+    );
+    const packagesMap = new Map(
+      packagesByMonthData.map(p => [`${p._id.year}-${p._id.month}`, p.count])
+    );
+
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date();
       monthDate.setMonth(monthDate.getMonth() - i);
-      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      const key = `${monthDate.getFullYear()}-${monthDate.getMonth() + 1}`;
       
-      const [monthRevenue, monthPackages] = await Promise.all([
-        Payment.aggregate([
-          { $match: { 
-            status: "captured", 
-            createdAt: { $gte: monthStart, $lte: monthEnd }
-          }},
-          { $group: { _id: null, total: { $sum: "$amount" }}}
-        ]),
-        Package.countDocuments({
-          createdAt: { $gte: monthStart, $lte: monthEnd },
-          status: { $ne: "Deleted" }
-        })
-      ]);
-
       revenueByMonth.push({
         month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
-        revenue: monthRevenue[0]?.total || 0,
-        packages: monthPackages
+        revenue: revenueMap.get(key) || 0,
+        packages: packagesMap.get(key) || 0
       });
     }
 
@@ -264,18 +322,31 @@ export async function GET(req: Request) {
     }));
 
     // Recent Activity - Get recent packages, payments, and customer registrations
+    // Add date filter to limit data and prevent memory issues
+    const recentDateLimit = new Date();
+    recentDateLimit.setDate(recentDateLimit.getDate() - 90); // Last 90 days only
+    
     const [recentPackages, recentPayments, recentCustomers] = await Promise.all([
-      Package.find({ status: { $ne: "Deleted" } })
+      Package.find({ 
+        status: { $ne: "Deleted" },
+        createdAt: { $gte: recentDateLimit }
+      })
         .select("trackingNumber status createdAt")
         .sort({ createdAt: -1 })
         .limit(4)
         .lean(),
-      Payment.find({ status: "captured" })
+      Payment.find({ 
+        status: "captured",
+        createdAt: { $gte: recentDateLimit }
+      })
         .select("amount createdAt")
         .sort({ createdAt: -1 })
         .limit(2)
         .lean(),
-      User.find({ role: "customer" })
+      User.find({ 
+        role: "customer",
+        createdAt: { $gte: recentDateLimit }
+      })
         .select("firstName lastName createdAt")
         .sort({ createdAt: -1 })
         .limit(2)
@@ -336,8 +407,24 @@ export async function GET(req: Request) {
 
   } catch (error) {
     console.error("Analytics error:", error);
+    
+    // Handle memory-related errors specifically
+    if (error instanceof RangeError && error.message.includes('Array buffer')) {
+      console.error("Memory allocation error - likely too much data");
+      return NextResponse.json(
+        { 
+          error: "Data set too large. Please try a shorter time range.",
+          code: "MEMORY_ERROR"
+        },
+        { status: 500 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: "Failed to fetch analytics" },
+      { 
+        error: error instanceof Error ? error.message : "Failed to fetch analytics",
+        code: "ANALYTICS_ERROR"
+      },
       { status: 500 }
     );
   }

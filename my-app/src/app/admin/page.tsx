@@ -108,11 +108,21 @@ export default function AdminDashboard() {
       }
 
       const data = await response.json();
-      setStats(data);
-      setLastUpdated(new Date());
+      
+      // Check for memory error
+      if (data.error && data.code === 'MEMORY_ERROR') {
+        setError('Data set too large. Please try a shorter time range (7d or 30d).');
+        setStats(null);
+      } else if (!response.ok) {
+        throw new Error(data.error || `Failed to fetch stats: ${response.statusText}`);
+      } else {
+        setStats(data);
+        setLastUpdated(new Date());
+      }
     } catch (err) {
       console.error('Error fetching stats:', err);
       setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
+      setStats(null);
     } finally {
       setIsLoading(false);
     }

@@ -74,7 +74,31 @@ export default function RateCalculatorPage() {
       const cost = matchingRule.baseRate + (weight * matchingRule.perKgRate);
       setCalcResult(cost);
     } else {
-      alert("No pricing rule found for these parameters");
+      // Show a more helpful error message
+      const availableRules = rules.filter(r => r.active);
+      if (availableRules.length === 0) {
+        alert("No pricing rules are configured. Please add pricing rules first.");
+      } else {
+        const originMatches = availableRules.filter(r => 
+          r.origin.toLowerCase() === calcOrigin.toLowerCase()
+        );
+        const destMatches = availableRules.filter(r => 
+          r.destination.toLowerCase() === calcDest.toLowerCase()
+        );
+        
+        let errorMsg = "No pricing rule found for these parameters.\n\n";
+        if (originMatches.length === 0) {
+          errorMsg += `No rules found for origin: ${calcOrigin}\n`;
+        }
+        if (destMatches.length === 0) {
+          errorMsg += `No rules found for destination: ${calcDest}\n`;
+        }
+        if (originMatches.length > 0 && destMatches.length > 0) {
+          errorMsg += `Weight ${weight}kg is outside the available weight ranges.\n`;
+          errorMsg += `Available ranges: ${availableRules.map(r => `${r.weightMin}-${r.weightMax}kg`).join(', ')}`;
+        }
+        alert(errorMsg);
+      }
       setCalcResult(null);
     }
   }
@@ -277,7 +301,189 @@ export default function RateCalculatorPage() {
         </div>
       </div>
 
-      {/* Add/Edit Modal - Implementation would go here */}
+      {/* Add/Edit Pricing Rule Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl w-full max-w-md">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                {editing ? 'Edit' : 'Add'} Pricing Rule
+              </h2>
+              
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const rule = {
+                  id: editing?.id,
+                  name: formData.get('name') as string,
+                  origin: formData.get('origin') as string,
+                  destination: formData.get('destination') as string,
+                  weightMin: parseFloat(formData.get('weightMin') as string),
+                  weightMax: parseFloat(formData.get('weightMax') as string),
+                  baseRate: parseFloat(formData.get('baseRate') as string),
+                  perKgRate: parseFloat(formData.get('perKgRate') as string),
+                  currency: formData.get('currency') as string,
+                  active: formData.get('active') === 'on',
+                };
+                saveRule(rule);
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                      Rule Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      required
+                      defaultValue={editing?.name || ''}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                      placeholder="e.g., Standard Shipping"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Origin *
+                      </label>
+                      <input
+                        type="text"
+                        name="origin"
+                        required
+                        defaultValue={editing?.origin || ''}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                        placeholder="e.g., USA"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Destination *
+                      </label>
+                      <input
+                        type="text"
+                        name="destination"
+                        required
+                        defaultValue={editing?.destination || ''}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                        placeholder="e.g., Pakistan"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Min Weight (kg) *
+                      </label>
+                      <input
+                        type="number"
+                        name="weightMin"
+                        required
+                        step="0.01"
+                        min="0"
+                        defaultValue={editing?.weightMin || '0'}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                        placeholder="0.5"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Max Weight (kg) *
+                      </label>
+                      <input
+                        type="number"
+                        name="weightMax"
+                        required
+                        step="0.01"
+                        min="0"
+                        defaultValue={editing?.weightMax || '100'}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                        placeholder="100"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Base Rate ({editing?.currency || 'USD'}) *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-slate-500">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          name="baseRate"
+                          required
+                          step="0.01"
+                          min="0"
+                          defaultValue={editing?.baseRate || ''}
+                          className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                          placeholder="10.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Per Kg Rate ({editing?.currency || 'USD'}) *
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-slate-500">$</span>
+                        </div>
+                        <input
+                          type="number"
+                          name="perKgRate"
+                          required
+                          step="0.01"
+                          min="0"
+                          defaultValue={editing?.perKgRate || ''}
+                          className="w-full pl-7 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-[#0f4d8a] focus:border-transparent"
+                          placeholder="2.50"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="active"
+                      name="active"
+                      defaultChecked={editing ? editing.active : true}
+                      className="h-4 w-4 text-[#0f4d8a] focus:ring-[#0f4d8a] border-slate-300 rounded"
+                    />
+                    <label htmlFor="active" className="ml-2 block text-sm text-slate-700">
+                      Active
+                    </label>
+                  </div>
+                </div>
+                
+                <div className="mt-6 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditing(null);
+                    }}
+                    className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#0f4d8a] text-white rounded-lg hover:bg-[#0e447d]"
+                  >
+                    {editing ? 'Update' : 'Create'} Rule
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

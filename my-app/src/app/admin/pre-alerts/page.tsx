@@ -10,12 +10,28 @@ export default async function PreAlertsPage() {
   const proto = h.get("x-forwarded-proto") || "http";
   const base = `${proto}://${host}`;
 
-  const res = await fetch(`${base}/api/admin/pre-alerts`, { cache: "no-store" });
+  const res = await fetch(`${base}/api/admin/pre-alerts`, { 
+    cache: "no-store",
+    credentials: 'include',
+  });
   let data: any[] = [];
   try {
     const json = await res.json();
-    data = Array.isArray(json?.pre_alerts) ? json.pre_alerts : Array.isArray(json?.items) ? json.items : Array.isArray(json) ? json : [];
-  } catch {}
+    if (res.ok) {
+      data = Array.isArray(json?.pre_alerts) ? json.pre_alerts : Array.isArray(json?.items) ? json.items : Array.isArray(json) ? json : [];
+      // Map the data to match the expected format
+      data = data.map((p: any) => ({
+        _id: p.id || p._id,
+        trackingNumber: p.tracking_number || p.trackingNumber,
+        carrier: p.carrier || "Unknown",
+        origin: p.origin || "Unknown",
+        expectedDate: p.expected_date || p.expectedDate,
+        status: p.status || "pending",
+      }));
+    }
+  } catch (err) {
+    console.error("Error loading pre-alerts:", err);
+  }
 
   // Status color mapping
   const getStatusColor = (status: string) => {
@@ -176,6 +192,9 @@ export default async function PreAlertsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Status
                   </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -239,6 +258,54 @@ export default async function PreAlertsPage() {
                       <span className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ${getStatusColor(p.status)}`}>
                         {p.status}
                       </span>
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <div className="flex gap-2">
+                        {p.status === "submitted" && (
+                          <>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`${base}/api/admin/pre-alerts`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ id: p._id, action: "approve" }),
+                                  });
+                                  if (res.ok) {
+                                    window.location.reload();
+                                  }
+                                } catch (err) {
+                                  alert("Failed to approve pre-alert");
+                                }
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded hover:bg-green-200"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch(`${base}/api/admin/pre-alerts`, {
+                                    method: "PUT",
+                                    headers: { "Content-Type": "application/json" },
+                                    credentials: 'include',
+                                    body: JSON.stringify({ id: p._id, action: "reject" }),
+                                  });
+                                  if (res.ok) {
+                                    window.location.reload();
+                                  }
+                                } catch (err) {
+                                  alert("Failed to reject pre-alert");
+                                }
+                              }}
+                              className="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded hover:bg-red-200"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

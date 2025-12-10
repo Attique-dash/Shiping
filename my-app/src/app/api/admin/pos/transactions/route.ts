@@ -86,6 +86,7 @@ export async function GET(req: Request) {
       tax: txn.tax,
       total: txn.total,
       notes: txn.notes || null,
+      items: txn.items,
       created_at: txn.createdAt ? new Date(txn.createdAt).toISOString() : null,
     })),
   });
@@ -152,14 +153,15 @@ export async function POST(req: Request) {
     cashierId: payload._id as string | undefined,
   });
 
-  // TODO: inventory update integration and printable receipt generation
-
   return NextResponse.json({
     receipt_no: created.receiptNo,
+    customer_code: created.customerCode || null,
     total: created.total,
     tax: created.tax,
     subtotal: created.subtotal,
     method: created.method,
+    notes: created.notes || null,
+    items: created.items,
     created_at: created.createdAt?.toISOString() || new Date().toISOString(),
   });
 }

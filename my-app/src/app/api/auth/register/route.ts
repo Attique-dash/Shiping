@@ -3,98 +3,94 @@ import { dbConnect } from '@/lib/db';
 import User from '@/models/User';
 import { hashPassword } from '@/lib/auth';
 import crypto from 'crypto';
-import mongoose from 'mongoose';
+import { sendVerificationEmail } from '@/lib/email';
 
+export const dynamic = 'force-dynamic'; // Ensure the route is dynamic
+
+// First step of registration - basic info
 export async function POST(request: Request) {
   try {
     // Connect to database
-    const db = await dbConnect();
-    
-    // Make sure models are registered
-    const UserModel = db.models.User || User;
+    await dbConnect();
     
     const body = await request.json();
-    const { 
-      fullName, 
-      email, 
-      phoneNo, 
-      password, 
-      adress, 
-      city, 
-      state, 
-      zip_code, 
-      country 
-    } = body;
+    const { name, email, password, confirmPassword } = body;
 
     // Validate required fields
-    if (!fullName || !email || !password) {
+    if (!name || !email || !password || !confirmPassword) {
       return NextResponse.json(
-        { error: 'Full name, email, and password are required' },
+        { success: false, error: 'All fields are required' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      return NextResponse.json(
+        { success: false, error: 'Passwords do not match' },
+        { status: 400 }
+      );
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      return NextResponse.json(
+        { success: false, error: 'Password must be at least 6 characters long' },
         { status: 400 }
       );
     }
 
     // Check if user already exists
-    const existingUser = await UserModel.findOne({ email: email.toLowerCase() });
+    const existingUser = await User.findOne({ email: email.toLowerCase().trim() });
     if (existingUser) {
       return NextResponse.json(
-        { error: 'Email already in use' },
+        { 
+          success: false, 
+          error: 'Email already in use',
+          nextStep: existingUser.registrationStep > 1 ? '/login' : null
+        },
         { status: 400 }
       );
     }
 
-    // Split full name
-    const nameParts = (fullName || '').trim().split(/\s+/);
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-
-    // Generate unique user code
-    const userCode = `C${Date.now()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-
-    // Hash password
-    const passwordHash = await hashPassword(password);
-
-    // Create user
-    const user = new UserModel({
-      userCode,
-      firstName,
-      lastName,
-      email: email.toLowerCase(),
-      passwordHash,
-      phone: phoneNo,
-      address: {
-        street: adress,
-        city,
-        state,
-        zipCode: zip_code,
-        country,
-      },
-      role: 'customer',
-      accountStatus: 'active',
-      emailVerified: false,
+    // Create new user with basic info (step 1)
+    const user = new User({
+      name: name.trim(),
+      email: email.toLowerCase().trim(),
+      password, // Will be hashed by pre-save hook
+      registrationStep: 1, // First step completed
+      accountStatus: 'pending',
     });
 
-    // Save user to database
+    // Generate verification token
+    const verificationToken = user.generateVerificationToken();
+    
+    // Save the user
     await user.save();
 
-    console.log('User created successfully:', user.userCode);
+    // Send verification email
+    try {
+      await sendVerificationEmail(user.email, verificationToken);
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Continue with registration even if email fails
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Registration successful',
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: `${user.firstName} ${user.lastName}`.trim(),
-        userCode: user.userCode,
-      }
+      message: 'Registration successful! Please complete your profile.',
+      userId: user._id,
+      nextStep: `/register/${user._id}/details`
     }, { status: 201 });
   } catch (error: any) {
     console.error('Registration error:', error);
-    const errorMessage = error.code === 11000 ? 'Email already exists' : 'Error creating user';
+    const errorMessage = error.code === 11000 
+      ? 'This email is already registered. Please use a different email or login.'
+      : 'An error occurred during registration. Please try again.';
+    
     return NextResponse.json(
       { 
-        success: false,
+        success: false, 
         error: errorMessage,
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },

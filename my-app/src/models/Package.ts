@@ -1,87 +1,116 @@
 // src/models/Package.ts
-import { Schema, model, models, Types } from "mongoose";
+import mongoose, { Document, Schema } from 'mongoose';
 
-export type PackageStatus = 
-  | "Unknown" 
-  | "At Warehouse" 
-  | "In Transit" 
-  | "At Local Port" 
-  | "Delivered" 
-  | "Deleted";
-
-export interface IPackage {
-  _id?: Types.ObjectId;
+export interface IPackage extends Document {
   trackingNumber: string;
-  userCode: string;
-  customer?: Types.ObjectId;
-  weight?: number;
-  shipper?: string;
-  description?: string;
-  status: PackageStatus;
-  length?: number;
-  width?: number;
-  height?: number;
-  entryStaff?: string;
-  branch?: string;
-  controlNumber?: string;
-  manifestId?: string;
-  serviceTypeId?: string;
-  serviceTypeName?: string;
-  externalStatusLabel?: string;
-  invoiceRecords?: any[];
-  invoiceDocuments?: any[];
-  history?: Array<{
-    status: PackageStatus;
-    at: Date;
-    note?: string;
+  status: 'received' | 'in_transit' | 'delivered' | 'unknown';
+  sender: {
+    name: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+  };
+  recipient: {
+    name: string;
+    email: string;
+    shippingId: string;
+    phone?: string;
+    address?: string;
+  };
+  dimensions: {
+    length: number;
+    width: number;
+    height: number;
+    unit: 'cm' | 'in';
+    weight: number;
+    weightUnit: 'kg' | 'lb';
+  };
+  receivedAt: Date;
+  notes?: string;
+  history: Array<{
+    status: string;
+    timestamp: Date;
+    notes?: string;
+    location?: string;
+    updatedBy: string;
   }>;
-  createdAt?: Date;
-  updatedAt?: Date;
-  entryDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const PackageSchema = new Schema<IPackage>(
   {
-    trackingNumber: { type: String, required: true, unique: true, index: true },
-    userCode: { type: String, required: true, index: true },
-    customer: { type: Schema.Types.ObjectId, ref: "User" },
-    weight: { type: Number },
-    shipper: { type: String },
-    description: { type: String },
+    trackingNumber: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      uppercase: true,
+    },
     status: {
       type: String,
-      enum: ["Unknown", "At Warehouse", "In Transit", "At Local Port", "Delivered", "Deleted"],
-      default: "Unknown",
-      index: true,
+      enum: ['received', 'in_transit', 'delivered', 'unknown'],
+      default: 'received',
+      required: true,
     },
-    length: { type: Number },
-    width: { type: Number },
-    height: { type: Number },
-    entryStaff: { type: String },
-    branch: { type: String },
-    controlNumber: { type: String },
-    manifestId: { type: String },
-    serviceTypeId: { type: String },
-    serviceTypeName: { type: String },
-    externalStatusLabel: { type: String },
-    invoiceRecords: [{ type: Schema.Types.Mixed }],
-    invoiceDocuments: [{ type: Schema.Types.Mixed }],
+    sender: {
+      name: { type: String, required: true, trim: true },
+      email: { type: String, trim: true, lowercase: true },
+      phone: { type: String, trim: true },
+      address: { type: String, trim: true },
+    },
+    recipient: {
+      name: { type: String, required: true, trim: true },
+      email: { type: String, required: true, trim: true, lowercase: true },
+      shippingId: { type: String, required: true, trim: true, index: true },
+      phone: { type: String, trim: true },
+      address: { type: String, trim: true },
+    },
+    dimensions: {
+      length: { type: Number, required: true, min: 0 },
+      width: { type: Number, required: true, min: 0 },
+      height: { type: Number, required: true, min: 0 },
+      unit: { type: String, enum: ['cm', 'in'], default: 'cm' },
+      weight: { type: Number, required: true, min: 0 },
+      weightUnit: { type: String, enum: ['kg', 'lb'], default: 'kg' },
+    },
+    receivedAt: { type: Date, default: Date.now },
+    notes: { type: String, trim: true },
     history: [
       {
-        status: {
-          type: String,
-          enum: ["Unknown", "At Warehouse", "In Transit", "At Local Port", "Delivered", "Deleted"],
-        },
-        at: { type: Date, default: Date.now },
-        note: { type: String },
+        status: { type: String, required: true },
+        timestamp: { type: Date, default: Date.now },
+        notes: String,
+        location: String,
+        updatedBy: { type: String, required: true },
       },
     ],
-    entryDate: { type: Date },
   },
   { timestamps: true }
 );
 
-PackageSchema.index({ userCode: 1, status: 1 });
-PackageSchema.index({ createdAt: -1 });
+// Add indexes
+PackageSchema.index({ trackingNumber: 1 }, { unique: true });
+PackageSchema.index({ 'recipient.shippingId': 1 });
+PackageSchema.index({ status: 1 });
+PackageSchema.index({ receivedAt: -1 });
 
-export const Package = models.Package || model<IPackage>("Package", PackageSchema);
+// Add a pre-save hook to add history entry when status changes
+PackageSchema.pre('save', function (next) {
+  if (this.isModified('status')) {
+    if (!this.history) {
+      this.history = [];
+    }
+    this.history.push({
+      status: this.status,
+      updatedBy: 'system', // In a real app, this would be the user ID
+    });
+  }
+  next();
+});
+
+const PackageModel =
+  (mongoose.models.Package as mongoose.Model<IPackage>) ||
+  mongoose.model<IPackage>('Package', PackageSchema);
+
+export default PackageModel;

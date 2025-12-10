@@ -33,8 +33,15 @@ export default function ReceivalsPage() {
     setLoading(true);
     setError(null);
     try {
-      // Load packages and convert to receivals format
-      const res = await fetch("/api/admin/packages?per_page=100", { cache: "no-store" });
+      // Load packages with authentication (NextAuth handles auth via cookies)
+      const res = await fetch("/api/admin/packages?per_page=100", { 
+        cache: "no-store",
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
       const data = await res.json();
       if (!res.ok) {
         const errorMsg = data?.error || "Failed to load receivals";
@@ -138,14 +145,26 @@ export default function ReceivalsPage() {
                 </p>
               </div>
               
-              <button 
-                onClick={loadReceivals}
-                disabled={loading}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-md backdrop-blur transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50"
-              >
-                <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
+              <div className="flex gap-3">
+                <button 
+                  onClick={loadReceivals}
+                  disabled={loading}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-5 py-3 text-sm font-semibold shadow-md backdrop-blur transition hover:bg-white/25 hover:shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                <button 
+                  onClick={() => {
+                    // TODO: Open new receival form modal
+                    alert("New Receival functionality - Coming soon!");
+                  }}
+                  className="inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-[#0f4d8a] shadow-md backdrop-blur transition hover:bg-blue-50 hover:shadow-xl hover:scale-105 active:scale-95"
+                >
+                  <Package className="h-5 w-5" />
+                  New Receival
+                </button>
+              </div>
             </div>
 
             {/* Stats Cards inside header */}
@@ -406,6 +425,42 @@ export default function ReceivalsPage() {
                             <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
                               <p className="text-sm font-medium text-slate-700">Tracking Number</p>
                               <p className="text-lg font-mono font-bold text-[#0f4d8a] mt-1">{receival.trackingNumber}</p>
+                            </div>
+                          )}
+
+                          {/* Record Received Action */}
+                          {receival.status !== "received" && (
+                            <div className="mt-4 pt-4 border-t border-slate-200">
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`Mark receival ${receival.receivalNumber} as received?`)) return;
+                                  try {
+                                    // Update package status to "At Warehouse" (received)
+                                    const res = await fetch(`/api/admin/packages`, {
+                                      method: "PUT",
+                                      headers: { "Content-Type": "application/json" },
+                                      credentials: 'include',
+                                      body: JSON.stringify({
+                                        id: receival.id,
+                                        status: "At Warehouse",
+                                      }),
+                                    });
+                                    if (res.ok) {
+                                      alert("Receival recorded successfully!");
+                                      loadReceivals();
+                                    } else {
+                                      const data = await res.json();
+                                      alert(data?.error || "Failed to record receival");
+                                    }
+                                  } catch (e) {
+                                    alert("Error recording receival: " + (e instanceof Error ? e.message : "Unknown error"));
+                                  }
+                                }}
+                                className="w-full flex items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 transition-colors"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                Record as Received
+                              </button>
                             </div>
                           )}
                         </div>

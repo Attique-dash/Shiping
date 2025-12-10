@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { FileText, Plus, Trash2, Save, Download, Send, User, Package, DollarSign, Calendar } from "lucide-react";
 import { ExportService } from "@/lib/export-service";
+import toast, { Toaster } from "react-hot-toast";
 
 type InvoiceItem = {
   id: string;
@@ -40,8 +41,14 @@ export default function InvoiceGeneratorPage() {
 
   async function loadCustomers() {
     try {
-      const res = await fetch("/api/admin/customers");
+      const res = await fetch("/api/admin/customers", {
+        credentials: 'include',
+      });
       const data = await res.json();
+      if (!res.ok) {
+        console.error("Failed to load customers:", data?.error);
+        return;
+      }
       const customerList = data.customers?.map((c: any) => ({
         id: c.customer_id,
         name: c.full_name,
@@ -106,45 +113,91 @@ export default function InvoiceGeneratorPage() {
       alert("Please add at least one item");
       return;
     }
+    const hasEmptyDescription = items.some((item) => !item.description || item.description.trim().length === 0);
+    if (hasEmptyDescription) {
+      alert("Please fill in a description for each item");
+      return;
+    }
 
     setLoading(true);
     try {
+      // Map to main Invoice model shape so records appear on /admin/invoices
       const payload = {
-        invoice_number: invoiceNumber,
-        customer_id: selectedCustomer.id,
-        customer_name: selectedCustomer.name,
-        customer_email: selectedCustomer.email,
-        issue_date: issueDate,
-        due_date: dueDate,
-        items: items.map(item => ({
+        customer: {
+          id: selectedCustomer.id,
+          name: selectedCustomer.name,
+          email: selectedCustomer.email,
+          address: selectedCustomer.address || "N/A",
+          city: "N/A",
+          country: "N/A",
+        },
+        items: items.map((item) => ({
           description: item.description,
           quantity: item.quantity,
-          unit_price: item.unitPrice,
-          total: item.total,
+          unitPrice: item.unitPrice,
+          taxRate: taxRate,
+          amount: 0,
+          taxAmount: 0,
+          total: 0,
         })),
-        subtotal,
-        discount_percentage: discount,
-        discount_amount: discountAmount,
-        tax_rate: taxRate,
-        tax_amount: taxAmount,
-        total,
-        notes,
+        status: "draft",
+        issueDate: new Date(issueDate),
+        dueDate: dueDate ? new Date(dueDate) : undefined,
+        paymentTerms: 30,
         currency: "USD",
+        amountPaid: 0,
+        notes,
       };
 
-      const res = await fetch("/api/admin/invoices/generate", {
+      const res = await fetch("/api/admin/invoices", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
+      
+      if (!res.ok) {
+        let message = "Failed to save invoice";
+        try {
+          const errorBody = await res.json();
+          if (errorBody?.error) {
+            message = typeof errorBody.error === "string" ? errorBody.error : JSON.stringify(errorBody.error);
+          }
+        } catch {
+          // ignore JSON parse errors
+        }
+        throw new Error(message);
+      }
 
-      if (!res.ok) throw new Error("Failed to save invoice");
-
-      alert("Invoice saved successfully!");
+      const result = await res.json();
+      toast.success("Invoice saved successfully!", {
+        duration: 4000,
+        icon: "✅",
+        style: {
+          background: "#10b981",
+          color: "#fff",
+          padding: "16px",
+          borderRadius: "8px",
+          fontSize: "14px",
+          fontWeight: "500",
+        },
+      });
       resetForm();
     } catch (error) {
       console.error("Save invoice error:", error);
-      alert("Failed to save invoice");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save invoice";
+      toast.error(errorMessage, {
+        duration: 5000,
+        icon: "❌",
+        style: {
+          background: "#ef4444",
+          color: "#fff",
+          padding: "16px",
+          borderRadius: "8px",
+          fontSize: "14px",
+          fontWeight: "500",
+        },
+      });
     } finally {
       setLoading(false);
     }
@@ -194,7 +247,39 @@ export default function InvoiceGeneratorPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
+    <>
+      <Toaster 
+        position="top-right"
+        reverseOrder={false}
+        gutter={8}
+        containerClassName=""
+        containerStyle={{}}
+        toastOptions={{
+          // Default options for all toasts
+          duration: 4000,
+          style: {
+            background: "#363636",
+            color: "#fff",
+          },
+          // Success toast
+          success: {
+            duration: 4000,
+            iconTheme: {
+              primary: "#10b981",
+              secondary: "#fff",
+            },
+          },
+          // Error toast
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: "#ef4444",
+              secondary: "#fff",
+            },
+          },
+        }}
+      />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -450,5 +535,6 @@ export default function InvoiceGeneratorPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
